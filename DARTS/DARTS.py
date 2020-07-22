@@ -3,8 +3,8 @@ import os
 sys.path.append(os.path.abspath("C:\\Users\\trey_\\Documents\\GitHub\\PROpy"))
 
 import matplotlib.pyplot as plt
-import scipy.integrate as spi
-import pro_lib as pl
+import scipy
+import pro_lib
 import numpy as np
 
 
@@ -67,7 +67,7 @@ def main():
 def costFunction(t,stateVector):
     """
     Return a cost value for the given orbit trajectory. Intended to compare 
-    for a single orbit
+    for a single orbit. TODO: Lifetime better?
     
     Parameters
     ----------
@@ -100,8 +100,8 @@ def costFunction(t,stateVector):
 
 def computeScienceMerit(t,stateVector):
     """
-    Return a sceince merit score for the given orbit trajectory. 
-    Intended to be over a single orbit
+    Return a science merit score for the given orbit trajectory. 
+    Intended to be over a single orbit 
     
     Parameters
     ----------
@@ -119,6 +119,20 @@ def computeScienceMerit(t,stateVector):
     
     """
 
+    #Pseudo code outline
+
+    #Define targets/ s/c position to see them
+
+    #Compute ground track over orbit, including the effect of earth rotating
+
+    #When over target, compute baseline, ambiguity
+
+    #Note if violate baseline/ambiguity constraint, and how oftern
+
+    #Score
+
+    
+
 
     
 
@@ -126,8 +140,8 @@ def main2(input_info,initial_xyz,mu,r_e,J2):
 
     initial_condition_type = "nonlinear_correction_linearized_j2_invariant"
 
-    # compute initial consitions for the chief and deputy
-    ys = pl.initial_conditions_deputy(initial_condition_type, input_info, initial_xyz, mu,r_e,J2)
+    # compute initial conditions for the chief and deputy
+    ys = pro_lib.initial_conditions_deputy(initial_condition_type, input_info, initial_xyz, mu,r_e,J2)
 
     # # assigning parameters 
 
@@ -200,11 +214,11 @@ def main2(input_info,initial_xyz,mu,r_e,J2):
     # dt = time[1]
     # print(dt)
     
-    sol  = spi.odeint(pl.dyn_chief_deputies,ys,time,args=(param[0],param[1],param[2],param[3]))
+    sol  = scipy.integrate.odeint(pro_lib.dyn_chief_deputies,ys,time,args=(param[0],param[1],param[2],param[3]))
     print(sol[:,1])
 
     #for tt in range(T-1):
-    #    total_dyn[:,tt+1] = pl.EulerInt(pl.Dyn_Chief_Deputies(total_dyn[:,tt],param),dt,total_dyn[:,tt])
+    #    total_dyn[:,tt+1] = pro_lib.EulerInt(pro_lib.Dyn_Chief_Deputies(total_dyn[:,tt],param),dt,total_dyn[:,tt])
 
     # result is table with rows = time
     # columns = orbital parameters (chief + non-chief)
