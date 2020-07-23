@@ -120,19 +120,61 @@ def computeScienceMerit(t,stateVector):
     """
 
     #Pseudo code outline
-
+    numSC = int(len(stateVector[0]/6))
     #Define targets/ s/c position to see them
 
+    #Load the elevation data in
+    #elevationData = 
+
+
     #Compute ground track over orbit, including the effect of earth rotating
+    
+    #Time,s/c,ground track
+    groundTracks = np.zeros((len(t),numSC,2))
+    
+    for i in range(numSC):
+        groundTracks = groundTrackComputation(stateVector[:,0+i*6:3+i*6])
+        
 
     #When over target, compute baseline, ambiguity
 
-    #Note if violate baseline/ambiguity constraint, and how oftern
+    #Note if violate baseline/ambiguity constraint, and how often
 
     #Score
 
     
+    #TODO, account for starting position of the Earth
+def groundTrackComputation(r,t0):
+    """
+    Return a latitude/longitude trajectory along the Earth given the
+    position vector along the orbit and the starting time difference from
+    0:00 UT
+    
+    Parameters
+    ----------
+    r : array, shape (number of positions, 3)
+        Position vector of the space craft at each step, as (x,yz) in 
+        the ECI frame
+    t0 : initial time 
 
+    Returns
+    -------
+    groundTrack : array, shape (len(r), 2)
+        The latitude and longitude of the trajectory along the Earth's 
+        surface
+    
+    """
+
+    #Convert into lon/lat using the fact that we are on a sphere
+    longitude = np.arctan2(r[:,2],r[:,1])
+    latitude = np.arctan2(r[:,3],np.sqrt(r[:,2]**2+r[:,1]**2))
+
+    #And account for the Earth's rotation by subtracting off Earth's rotation
+    longitude = longitude - t* EARTH.rotD *pi/180;
+    
+    #stack up the output
+    groundTrack = np.vstack(latitude,longitude)
+    return groundTrack.transpose()
 
     
 
