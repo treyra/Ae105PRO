@@ -11,6 +11,9 @@ import numpy as np
 
 
 def main():
+    #computeScienceMerit(0,0)
+    #return
+    
     # assigning parameters 
     """
     NoRev = input[0] # number of orbits
@@ -119,13 +122,18 @@ def computeScienceMerit(t,stateVector):
     
     """
 
-    #Pseudo code outline
+    #Compute the number of space craft in the formation
     numSC = int(len(stateVector[0]/6))
+    
     #Define targets/ s/c position to see them
 
-    #Load the elevation data in
-    #elevationData = 
+    #Load the elevation data in from https://webmap.ornl.gov/ogc/dataset.jsp?ds_id=10023 at .25 degree resolution
+    #If finer resolution is desired the hard coding will need to be changed
+    elevationData = np.genfromtxt('elevationData.txt',delimiter=' ',skip_header=5)
+    #bottom left corner corresponds to -180 W -90 S in this projection, so upper right is 179.75E 89.75N
 
+    #print(np.shape(elevationData)) # TODO: REMOVE
+    #return
 
     #Compute ground track over orbit, including the effect of earth rotating
     
@@ -138,12 +146,34 @@ def computeScienceMerit(t,stateVector):
 
     #When over target, compute baseline, ambiguity
 
+    #Use chief position to determine if we are over a target
+    #TODO: Incorporate the look angle functionality (add offset to ground track computation? or to the positioning function?)
+    for position in groundTracks[:,0,:]:
+        #Find lat/lon of the chief
+        lat = position[0]
+        lon = position[1]
+
+        #Compare with the vegetation data to see if we are over a target
+        #Will compute where to look in elevationData matrix
+        #Bound by extremes of array to avoid falling of the end of the array
+        row = int(np.min(719,np.max(0,np.round((-lat+89.75)*4)))) 
+        col = int(np.min(1439,np.max(0,np.round((lon+180)*4))))
+        vegH = elevationData[row,col]
+        #Check if we're over a target!
+        if vegH > 0:
+            
+            pass
+        
+
+
+
     #Note if violate baseline/ambiguity constraint, and how often
 
     #Score
 
     
     #TODO, account for starting position of the Earth
+    #TODO: Verify that the origin lines up with 0 W 0 N
 def groundTrackComputation(r,t0):
     """
     Return a latitude/longitude trajectory along the Earth given the
