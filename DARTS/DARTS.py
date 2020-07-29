@@ -3,76 +3,105 @@ import os
 sys.path.append(os.path.abspath("C:\\Users\\trey_\\Documents\\GitHub\\PROpy"))
 
 import matplotlib.pyplot as plt
-import scipy
+from scipy.integrate import odeint
+from scipy.spatial.transform import Rotation
 import pro_lib
 import numpy as np
 import math
+#For visualization
+from mpl_toolkits.mplot3d import Axes3D
 
-import scipy.spatial.transform.Rotation
 
 
 def main():
-    #computeScienceMerit(0,0)
-    #return
+    #Run on nominal NISAR mission
+    #Sun Sync periodic, N = 173, D = 12
+    #alt = 747, i = 98.4, e = 0 (assumed), other params unknown
+    #Swath width: 240 km
+    
+    #Assume a nominal number of 6 s/c, initialized in a line .25 km apart cross track, .05 km apart along track
+    
     
     # assigning parameters 
-    """
-    NoRev = input[0] # number of orbits
-
+    
+    NoRev = 173
     # orbital parameters
 
-    altitude = input[1]
-    ecc = input[2]
-    INC = input[3]
-    Om = input[4]
-    om = input[5]
-    f = input[6]
+    altitude = 747
+    ecc = 0
+    inc = 98.4
+    Om = 0
+    om = 0
+    f = 0
 
+    num_deputy = 5
 
-    deputy_num = input[7] 
-
-    fpo = input[8] # time steps per orbit
-    """
-
-    print(math.factorial(3))
-    return
 
     mu = 398600.4418  #gravitational constant
     r_e = 6378.1363   # Earth Radius 
     J2 = 1082.64*10**(-6) #J2 Constant
-    # info
-    input_info = np.zeros([9]) 
-    input_info[0] = 1  #no of orbits
-    input_info[1] = 500 #altitude
-    input_info[2] = 0.0 #ecc
-    input_info[3] = 60 #INC
-    input_info[4] = 0.0 #Om
-    input_info[5] = 60 #om
-    input_info[6] = 20 #f
-    input_info[7] = 3 #num_deputies
-    input_info[8] = 100 #output per orbit
 
-    # intial position on deputies
+    #Initial positions of DEPUTIES (Chief at 0,0,0)
+    init_deputy = np.array([[-.5,-.1,0],
+                            [-.25,-.05,0],
+                            [.25,.05,0],
+                            [.5,.1,0],
+                            [.75,.15,0]])
+
+    # compute initial conditions for the chief and deputy
+    ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
+                                           [NoRev,altitude,ecc,inc,Om,om,f,5], init_deputy, mu,r_e,J2)
+
+    #Compute orbit duration
+    '''
+    fpo = input_info[8] # time steps per orbit
+
+    # # Energy Matched 
+    # # J2 disturbance 
+    # # No drag
+
+    # k_J2 = (3/2)*J2*mu*(r_e**2)
+
+    # Orbital Elements
+    a = r_e + altitude           # semimajor axis [km] (Assumed circular orbit)
+    inc = inc*np.pi/180             # inclination [rad]
+
+
+    # Xu Wang Parameters
+    h = np.sqrt(a*(1 - ecc**2)*mu)           # angular momentum [km**2/s]
+
+
+     # effective period of the orbit
+    a_bar = a*(1 + 3*J2*r_e**2*(1-ecc**2)**0.5/(4*h**4/mu**2)*(3*np.cos(inc)**2 - 1))**(-2/3)  
+    period = 2*np.pi/np.sqrt(mu)*a_bar**(3/2)  
+ 
+
+    #  # simulation time
+    time = np.linspace(0,NoRev*period,int(period/(fpo)))  
+    # print(time)
+    # orbit_num = time/period               # time vector with units of orbits instead of seconds
+                                          # orbit = period of non J2 orbit
+    '''
+
+    #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 10 seconds
+    time = np.arange(0,12*24*3600,10)
     
-    num_deputy = int(input_info[7])
-
-    init_deputy = np.zeros([num_deputy,3])
-
-
+ 
+    
+    orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
+    #Plot the computed dynamics
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
     for i in range(num_deputy):
-        #UNITS ??
-        init_deputy[i,0] = 50*np.sin(2*np.pi*i/num_deputy)
-        init_deputy[i,1] = 50*np.cos(2*np.pi*i/num_deputy) 
-        init_deputy[i,2] = 10 + (-1)**(i)
 
-    dyn = main2(input_info,init_deputy,mu,r_e,J2)
+        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
+    plt.draw()
 
-    print("Output") 
-    print(np.shape(dyn))
-    print(dyn)
+    #Try feeding into our cost function
+    print(costFunction(time,orbitState,30))
 
 
-def costFunction(t,stateVector):
+def costFunction(t,stateVector,lookAngle):
     """
     Return a cost value for the given orbit trajectory. Intended to compare 
     for a single orbit. TODO: Lifetime better?
@@ -104,10 +133,13 @@ def costFunction(t,stateVector):
     orbitCost = computeOrbitCost(t,stateVector)
 
     #Compute the science merit that offsets the cost
-    scienceMerit = computeScienceMerit(t,stateVector)
+    scienceMerit = computeScienceMerit(t,stateVector,lookAngle)
+
+    return (orbitCost - scienceMerit)
 
  
-
+def computeOrbitCost(t,stateVector):
+    return 0
 
 def computeScienceMerit(t,stateVector,lookAngle=0):
     """
@@ -169,7 +201,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     #Distances to the target
     r0s = np.zeros(len(t))
     for i in range(len(groundTracks)):
-        (groundTracks[i],r0s[i]) = groundAngleTrackComputation(stateVector[i,0:6],lookAngle)
+        (groundTracks[i],r0s[i]) = groundAngleTrackComputation(stateVector[i,0:6],t[i],lookAngle)
 
     
     #When over target, compute baseline, ambiguity
@@ -187,8 +219,8 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         #Compare with the vegetation data to see if we are over a target
         #Will compute where to look in elevationData matrix
         #Bound by extremes of array to avoid falling of the end of the array
-        row = int(np.min(719,np.max(0,np.round((-lat+89.75)*4)))) 
-        col = int(np.min(1439,np.max(0,np.round((lon+180)*4))))
+        row = np.min(719,np.max(0,np.round((-lat+89.75)*4))).astype(np.int64)
+        col = np.min(1439,np.max(0,np.round((lon+180)*4))).astype(np.int64)
         vegH[i] = elevationData[row,col]
         #Check if we're over a target!
         if vegH[i]  > 0:
@@ -231,6 +263,9 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
 
 
 
+    print("Violations:")
+    print(numViolateRes)
+    print(numViolateAmb)
     #Score
     return np.sum(resolutions)
 
@@ -305,7 +340,7 @@ def groundAngleTrackComputation(x,t0,lookAngle):
     v = x[3:6]
     vhat = v/np.linalg.norm(v)
 
-    yhat = vhat - np.linalg.dot(rhat,vhat)*vhat #y direction is along velocity perpendicular to radial direction
+    yhat = vhat - np.dot(rhat,vhat)*vhat #y direction is along velocity perpendicular to radial direction
     yhat = yhat/np.linalg.norm(yhat)
 
     #Compute the view unit vector by rotating the -rhat vector around the yhat vector by the look angle
@@ -321,17 +356,17 @@ def groundAngleTrackComputation(x,t0,lookAngle):
     targetVector = rotate2.apply(rhat)
 
     #Convert into lon/lat using the fact that we are on a sphere
-    longitude = np.arctan2(targetVector[:,2],targetVector[:,1])
-    latitude = np.arctan2(targetVector[:,3],np.sqrt(targetVector[:,2]**2+targetVector[:,1]**2))
+    longitude = np.arctan2(targetVector[1],targetVector[0])
+    latitude = np.arctan2(targetVector[2],np.sqrt(targetVector[1]**2+targetVector[0]**2))
 
     #And account for the Earth's rotation by subtracting off Earth's rotation
-    longitude = longitude - t* EARTH.rotD *pi/180;
+    longitude = longitude - t0* 4.178074346064814**(-3) *np.pi/180;
 
     #Compute r0, distance from chief to the target, also using the law of sines
     r0 = rotationAngle*(6378.1363 * 1000)/lookAngle
     
     #stack up the output
-    groundTrack = np.vstack(latitude,longitude)
+    groundTrack = np.vstack((latitude,longitude))
     return (groundTrack.transpose(),r0)
 
 #TODO: Implement projection onto look angle
@@ -423,7 +458,7 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     #angle. Will then remove the along track dimension and get a 1D arrangement and sort them
     projectedPositions = np.zeros((int(len(stateVector)/6),2))
     for i in range(len(positions)):
-        positions[i] =  positions[i] - np.linalg.dot(positions[i],lookVector)*positions[i]/np.linalg.norm(positions[i])
+        positions[i] =  positions[i] - np.dot(positions[i],lookVector)*positions[i]/np.linalg.norm(positions[i])
         #Remove the along track (y) component
         projectedPositions[i] = np.array([positions[i,0],positions[i,2]])
 
@@ -441,124 +476,6 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     return mu
 
 
-
-
-
-def main2(input_info,initial_xyz,mu,r_e,J2):
-
-    initial_condition_type = "nonlinear_correction_linearized_j2_invariant"
-
-    # compute initial conditions for the chief and deputy
-    ys = pro_lib.initial_conditions_deputy(initial_condition_type, input_info, initial_xyz, mu,r_e,J2)
-
-    # # assigning parameters 
-
-    NoRev = input_info[0] # number of orbits
-
-    # # orbital parameters
-
-    altitude = input_info[1]
-    ecc = input_info[2]
-    INC = input_info[3]
-    Om = input_info[4]
-    om = input_info[5]
-    f = input_info[6]
-
-
-    deputy_num = int(input_info[7]) 
-
-    fpo = input_info[8] # time steps per orbit
-
-    # # Energy Matched 
-
-    # # J2 disturbance 
-
-    # # No drag
-
-    # ##----Constants--------------
-
-    # mu = 398600.4418  #gravitational constant
-    # r_e = 6378.1363   # Earth Radius 
-    # J2 = 1082.64*10**(-6) #J2 Constant
-
-    # k_J2 = (3/2)*J2*mu*(r_e**2)
-
-    # Orbital Elements
-    a = r_e + altitude           # semimajor axis [km]
-    inc = INC*np.pi/180             # inclination [rad]
-
-
-    # Xu Wang Parameters
-    h = np.sqrt(a*(1 - ecc**2)*mu)           # angular momentum [km**2/s]
-
-    # # Number of Satellites
-    # sat_num = int(deputy_num + 1) 
-    
-
-     # effective period of the orbit
-    a_bar = a*(1 + 3*J2*r_e**2*(1-ecc**2)**0.5/(4*h**4/mu**2)*(3*np.cos(inc)**2 - 1))**(-2/3)  
-    period = 2*np.pi/np.sqrt(mu)*a_bar**(3/2)  
- 
-
-    #  # simulation time
-    time = np.linspace(0,NoRev*period,int(period/(fpo)))  
-    # print(time)
-    # orbit_num = time/period               # time vector with units of orbits instead of seconds
-                                          # orbit = period of non J2 orbit
-  
-
-    #
-    # param for simulation
-
-    param = np.array([mu, r_e, J2,deputy_num])
-    
-    # run the dynamics
-
-    # T = len(time)
-    
-    # total_dyn = np.zeros([sat_num*6,T]) 
-    # total_dyn[:,0] = ys
-
-    # dt = time[1]
-    # print(dt)
-    
-    sol  = scipy.integrate.odeint(pro_lib.dyn_chief_deputies,ys,time,args=(param[0],param[1],param[2],param[3]))
-    print(sol[:,1])
-
-    #for tt in range(T-1):
-    #    total_dyn[:,tt+1] = pro_lib.EulerInt(pro_lib.Dyn_Chief_Deputies(total_dyn[:,tt],param),dt,total_dyn[:,tt])
-
-    # result is table with rows = time
-    # columns = orbital parameters (chief + non-chief)
-
-    # fig = plt.figure()
-    # ax = plt.axes(projection='3d')
-    #------------------------------------------------------------------------------------------#
-    #----------------------------------------------------- Chief Solution------_---------------#
-    #------------------------------------------------------------------------------------------#
-    # # chief
-    # r = sol[:,0] # (geocentric distance)
-    # v_x = sol[:,1] # (radial velocity)
-    # h = sol[:,2] # (angular momentum)
-    # Omega = sol[:,3] # (right ascension of the ascending node)
-    # i = sol[:,4] #(orbit inclination)
-    # theta = sol[:,5] # (argument of latitude)
-
-    # # Convert to cartesian coordinates
-    # # see http://farside.ph.utexas.edu/teaching/celestial/Celestialhtml/node34.html
-    # X = r*(np.cos(Omega)*np.cos(theta) - np.sin(Omega)*np.sin(theta)*np.cos(i))
-    # Y = r*(np.sin(Omega)*np.cos(theta) + np.cos(Omega)*np.sin(theta)*np.cos(i))
-    # Z = r*(np.sin(i)*np.sin(theta))
-
-    # # ax.plot3D(X,Y,Z)
-
-    # # deputies are in relative coordinates
-    # for k in range(1, 4):
-    #     # ax.plot3D(X + sol[:,k*6+0],Y + sol[:,k*6+1],Z + sol[:,k*6+2])
-    #     ax.plot3D(sol[:,k*6+0],sol[:,k*6+1],sol[:,k*6+2])
-    # plt.show()
-
-    return sol
 
 
 if __name__ == "__main__":
