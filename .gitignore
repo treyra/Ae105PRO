@@ -353,3 +353,4 @@ MigrationBackup/
 .ionide/
 DARTS/sdat_10023_1_20200721_210355926.asc.txt
 DARTS/elevationData.txt
+*.mp4

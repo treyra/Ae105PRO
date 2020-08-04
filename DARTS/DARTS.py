@@ -9,7 +9,10 @@ import pro_lib
 import numpy as np
 import math
 #For visualization
+import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
+import matplotlib.animation as animation
 
 
 
@@ -48,10 +51,12 @@ def main():
                             [.5,.1,0],
                             [.75,.15,0]])
 
+    print(init_deputy)
+
     # compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
                                            [NoRev,altitude,ecc,inc,Om,om,f,5], init_deputy, mu,r_e,J2)
-
+    print(ys)
     #Compute orbit duration
     '''
     fpo = input_info[8] # time steps per orbit
@@ -84,22 +89,91 @@ def main():
     '''
 
     #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 10 seconds
-    time = np.arange(0,12*24*3600,10)
+    time = np.arange(0,12*24*3600,60)
+    print("start")
     
  
     
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
+    print(np.shape(orbitState))
+    print(orbitState)
+    print(orbitState[0])
     #Plot the computed dynamics
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for i in range(num_deputy):
-
+    
         ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
     plt.draw()
-
+    
     #Try feeding into our cost function
     print(costFunction(time,orbitState,30))
+  
+    
+    #fig = go.Figure()
+    ## Add traces, one for each slider step
+    #for state in orbitState:
+    #    xs = state[6::6]
+    #    ys = state[7::6]
+    #    zs = state[8::6]
+    #    fig.add_trace(
+    #        go.Scatter3d(
+    #            visible=False,
+    #            x=xs,y=ys,z=zs),
+    #            range_x=[-1,1], range_y=[-1,1], range_z=[-1,1])
+    #
+    ## Make 0th trace visible
+    #fig.data[0].visible = True
+    #
+    ## Create and add slider
+    #steps = []
+    #for i in range(len(fig.data)):
+    #    step = dict(
+    #        method="update",
+    #        args=[{"visible": [False] * len(fig.data)}],
+    #    )
+    #    step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+    #    steps.append(step)
+    #
+    #sliders = [dict(
+    #    active=0,
+    #    currentvalue={"prefix": "Frequency: "},
+    #    #pad={"t": 50},
+    #    steps=steps
+    #)]
+    #
+    #fig.update_layout(
+    #    sliders=sliders
+    #)
+    #
+    #
+    #fig.show()
 
+
+    #orbitData = np.array([orbitState[:,6::6],orbitState[:,7::6],orbitState[:,8::6]])
+    #Writer = animation.writers['ffmpeg']
+    #writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
+    #
+    #fig = plt.figure(figsize=(10,10))
+    #ax = fig.add_subplot(111, projection='3d')
+    #ax.set_xlim(-1, 1)
+    #ax.set_ylim(-1, 1)
+    #ax.set_zlim(-1, 1)
+    #print(len(time))
+    #ani = animation.FuncAnimation(fig, animate, frames=len(time), fargs=(orbitData,ax))
+    #
+    #ani.save("demo2.mp4", writer=writer)
+
+
+def animate(i,orbitData,ax):
+    print(i)
+    ax.clear()
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
+    data = orbitData[:,int(i):int(i+1),:] #select data range
+    for i in range(len(data[0,0,:])):
+        ax.plot(data[0,:,i],data[1,:,i],data[2,:,i],"o")
 
 def costFunction(t,stateVector,lookAngle):
     """
@@ -219,8 +293,8 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         #Compare with the vegetation data to see if we are over a target
         #Will compute where to look in elevationData matrix
         #Bound by extremes of array to avoid falling of the end of the array
-        row = np.min(719,np.max(0,np.round((-lat+89.75)*4))).astype(np.int64)
-        col = np.min(1439,np.max(0,np.round((lon+180)*4))).astype(np.int64)
+        row = int(np.min((719,np.max((0,np.round((-lat+89.75)*4))))))
+        col = int(np.min((1439,np.max((0,np.round((lon+180)*4))))))
         vegH[i] = elevationData[row,col]
         #Check if we're over a target!
         if vegH[i]  > 0:
@@ -252,6 +326,9 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     numViolateRes = 0
     numViolateAmb = 0
     for i in range(len(t)):
+        print(i)
+        print(baselines[i])
+        print (seperations[i])
         resolutions[i] = lam * r0s[i] / (2 * baselines[i])
         ambiguities[i] = lam * r0s[i] / (2 * seperations[i])
         #Note if violate baseline/ambiguity constraint, and how often
@@ -262,6 +339,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
             numViolateAmb +=1
 
 
+    print(resolutions)
 
     print("Violations:")
     print(numViolateRes)
@@ -400,6 +478,8 @@ def computeBaseline(stateVector, lookAngle=0):
     positions = np.zeros((int(len(stateVector)/6),3))
     for i in range(len(positions)):
         positions[i] = stateVector[i*6:i*6+3]
+    #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
+    positions[0] = np.zeros(3)
     
     #Compute the look angle unit vector
     lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
@@ -410,13 +490,19 @@ def computeBaseline(stateVector, lookAngle=0):
     #bestPair = np.zeros(2)
     bestLn = 0
     #Loop over combinations
-    for i in range(len(position)-1):
-        for j in range(len(position) - 1 - i):
-            candiadateBaseline = positions[i] - position[j+i+1]
+    print("Positions:")
+    print(positions)
+    print("candiadateBaseline")
+    for i in range(len(positions)-1):
+        for j in range(len(positions) - 1 - i):
+            candiadateBaseline = positions[i] - positions[j+i+1]
+            print(candiadateBaseline)
             #Project onto the look angle and subtract this off to get component perpendicular to the look angle
-            candiadateLn = candiadateBaseline - np.linalg.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline)
+            candiadateLn = np.linalg.norm(candiadateBaseline - np.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline))
             if candiadateLn > bestLn:
                 bestLn = candiadateLn
+    print("best")
+    print(bestLn)
     return bestLn
 
 def computeMaxSeperation(stateVector, lookAngle=0):
@@ -468,7 +554,7 @@ def computeMaxSeperation(stateVector, lookAngle=0):
 
     #Now loop through looking for max separation
     mu = 0
-    for i in range(len(sortedPostions)-1):
+    for i in range(len(sortedPositions)-1):
         sep = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
         if sep > mu:
             mu = sep
