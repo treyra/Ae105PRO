@@ -45,11 +45,17 @@ def main():
     J2 = 1082.64*10**(-6) #J2 Constant
 
     #Initial positions of DEPUTIES (Chief at 0,0,0)
-    init_deputy = np.array([[-.5,-.1,0],
-                            [-.25,-.05,0],
-                            [.25,.05,0],
-                            [.5,.1,0],
-                            [.75,.15,0]])
+    #init_deputy = np.array([[-.5,-.1,0],
+    #                        [-.25,-.05,0],
+    #                        [.25,.05,0],
+    #                        [.5,.1,0],
+    #                        [.75,.15,0]])
+
+    init_deputy = np.array([[0,-.5,-.5,],
+                            [0,-.25,-.25],
+                            [0,.25,.25],
+                            [0,.5,.5],
+                            [0,.75,.75]])
 
     print(init_deputy)
 
@@ -89,7 +95,7 @@ def main():
     '''
 
     #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 10 seconds
-    time = np.arange(0,12*24*3600,60)
+    time = np.arange(0,12*24*3600,3600)
     print("start")
     
  
@@ -101,14 +107,31 @@ def main():
     #Plot the computed dynamics
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
+    ax.set_xlabel("x, radial out from Earth (km)")
+    ax.set_ylabel("y, along track (km)")
+    ax.set_zlabel("z, cross track (km)")
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
+    ax.azim = -100
+    ax.elev = 43
     for i in range(num_deputy):
     
         ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
+    
+    ax.plot([0],[0],[0],"ko")
     plt.draw()
     
     #Try feeding into our cost function
     print(costFunction(time,orbitState,30))
-  
+    plt.show()
+    
+    print('ax.azim {}'.format(ax.azim))
+    print('ax.elev {}'.format(ax.elev))
+    #Save the user selected "best" veiw for animation
+    azimuth = ax.azim
+    elevation = ax.elev
     
     #fig = go.Figure()
     ## Add traces, one for each slider step
@@ -159,21 +182,29 @@ def main():
     #ax.set_xlim(-1, 1)
     #ax.set_ylim(-1, 1)
     #ax.set_zlim(-1, 1)
+    #ax.azim = azimuth
+    #ax.elev = elevation
     #print(len(time))
     #ani = animation.FuncAnimation(fig, animate, frames=len(time), fargs=(orbitData,ax))
     #
-    #ani.save("demo2.mp4", writer=writer)
+    #ani.save("demo4.mp4", writer=writer)
 
 
 def animate(i,orbitData,ax):
     print(i)
     ax.clear()
+    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
+    ax.set_xlabel("x, radial out from Earth (km)")
+    ax.set_ylabel("y, along track (km)")
+    ax.set_zlabel("z, cross track (km)")
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     ax.set_zlim(-1, 1)
     data = orbitData[:,int(i):int(i+1),:] #select data range
     for i in range(len(data[0,0,:])):
         ax.plot(data[0,:,i],data[1,:,i],data[2,:,i],"o")
+    
+    ax.plot([0],[0],[0],"ko")
 
 def costFunction(t,stateVector,lookAngle):
     """
@@ -213,6 +244,32 @@ def costFunction(t,stateVector,lookAngle):
 
  
 def computeOrbitCost(t,stateVector):
+    """
+    Return a cost for the formation based on the initial delta-V
+    needed to assume the formation. This is assumed to be the initial
+    relative velocity of each deputy, assuming the initial drift to the
+    starting positions is negligible 
+    
+    Parameters
+    ----------
+    t : array
+        Time at which each state is provided (unused, left for future costs
+        that use t)
+    stateVector : array, shape (len(t), len(state))
+        State throughout the orbit at each time step. State should be 
+        (x,y,z,vx,vy,vz) stacked for each space craft
+    lookAngle : double (default 0)
+        Angle the target direction makes with the nadir direction, 
+        positive defined as a right handed rotation about the along
+        track direction, 0 is nadir.
+    Returns
+    -------
+    J : double
+        Numerical cost of the orbit. A lower cost means a more 
+        efficient/desirable orbit.
+    
+    """
+    
     return 0
 
 def computeScienceMerit(t,stateVector,lookAngle=0):
@@ -253,29 +310,16 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     #bottom left corner corresponds to -180 W -90 S in this projection, so upper right is 179.75E 89.75N
 
     #Compute the ground track of the center of the swath of the target location over the orbit
-
-#Old method, unsure if we need more than chief ground track
-#    #Time,s/c,ground track
-#    groundTracks = np.zeros((len(t),numSC,2))
-#    
-#    #Default ground looking approach, using the s/c ground track
-#    if lookAngle == 0:
-#        #Compute ground track over orbit, including the effect of earth rotating
-#        for i in range(numSC):
-#            groundTracks = groundTrackComputation(stateVector[:,0+i*6:3+i*6])
-#    #Non zero look angle (TODO: is the look angle constant?)
-#    #TODO: Likely redundant with angle=0 computation
-#    else:
-#        #Compute ground track over orbit, including the effect of earth rotating
-#        for i in range(numSC):
-#            groundTracks = groundAngleTrackComputation(stateVector[:,0+i*6:6+i*6],lookAngle)
-    
     #Time,ground track
     groundTracks = np.zeros((len(t),2))
     #Distances to the target
     r0s = np.zeros(len(t))
     for i in range(len(groundTracks)):
-        (groundTracks[i],r0s[i]) = groundAngleTrackComputation(stateVector[i,0:6],t[i],lookAngle)
+        #translating back to state vecotr from the orbital elements
+        chiefState = stateVector[i,0] * np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[1,0,0])
+        #Compute along track unit vector
+        yhat = np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[0,1,0])
+        (groundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefState,yhat,t[i],lookAngle)
 
     
     #When over target, compute baseline, ambiguity
@@ -300,8 +344,10 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         if vegH[i]  > 0:
             #Compute the baseline
             baselines[i] = computeBaseline(stateVector[i])
+            print(baselines)
             #Compute the ambiguity
             seperations[i] = computeMaxSeperation(stateVector[i])
+            print(seperations)
 
     #Now loop through and see how often we violate our constraints:
     #   Resolution > vegH/5
@@ -327,6 +373,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     numViolateAmb = 0
     for i in range(len(t)):
         print(i)
+        print("baselines")
         print(baselines[i])
         print (seperations[i])
         resolutions[i] = lam * r0s[i] / (2 * baselines[i])
@@ -386,7 +433,7 @@ def groundTrackComputation(r,t0):
 
     #TODO, account for starting position of the Earth
     #TODO: Verify that the origin lines up with 0 W 0 N
-def groundAngleTrackComputation(x,t0,lookAngle):
+def groundAngleTrackComputation(x,yhat,t0,lookAngle):
     """
     Return a latitude/longitude trajectory along the Earth of the look target
     given the position vector along the orbit and the starting time difference 
@@ -394,9 +441,11 @@ def groundAngleTrackComputation(x,t0,lookAngle):
     
     Parameters
     ----------
-    x : array, shape (6)
+    x : array, shape (3)
         Position vector of the space craft at the time step, as 
-        (x,y,z,vx,vy,vz) in the ECI frame
+        (x,y,z) in the ECI frame
+    yhat : array, shape (3)
+        Along track unit vector in the ECI frame
     t0 : double
         Time since 0:00 UT 
     lookAngle : double
@@ -411,15 +460,10 @@ def groundAngleTrackComputation(x,t0,lookAngle):
         Earth's surface
     """
 
-    #Compute the radial and along track unit vectors
-    r = x[0:3]
-    rhat = r/np.linalg.norm(r) #Also xhat, as this is the x direction in LVLH
+    #Compute the radial and unit vector
+    rhat = x/np.linalg.norm(x) #Also xhat, as this is the x direction in LVLH
 
-    v = x[3:6]
-    vhat = v/np.linalg.norm(v)
 
-    yhat = vhat - np.dot(rhat,vhat)*vhat #y direction is along velocity perpendicular to radial direction
-    yhat = yhat/np.linalg.norm(yhat)
 
     #Compute the view unit vector by rotating the -rhat vector around the yhat vector by the look angle
     rotate = Rotation.from_rotvec(np.radians(lookAngle) * yhat)
@@ -427,7 +471,7 @@ def groundAngleTrackComputation(x,t0,lookAngle):
 
     #Compute the angle we need to rotate rhat by to get look target using law of sines
     #(we know the look angle and its opposite side (radius of the Earth)
-    rotationAngle =  180 - ( + np.linalg.norm(r)* np.abs(lookAngle)/(6378.1363 * 1000) + lookAngle)
+    rotationAngle =  180 - ( np.linalg.norm(x)* np.abs(lookAngle)/(6378.1363 * 1000) + lookAngle)
     
     #Rotate rhat the opposite way we rotated the lookVector
     rotate2 = Rotation.from_rotvec(-np.sign(lookAngle)*np.radians(rotationAngle) * yhat)
@@ -562,7 +606,83 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     return mu
 
 
+def keplerainOrbitModel(params,t):
+    """
+    Convert from orbital elements to ECI postition and velocity 
+    This assumes an elliptical orbit, but could be extended to other types
+    Vectorized for the fitting function
+    """
+    
+    
 
+    a = params[0]
+    e = params[1]
+    inclin = params[2]
+    Omega = params[3]
+    w = params[4]
+    nu0 = params[5] #In Radians
+    
+    #Assuming Earth
+    muEarth = 398600.432896939164493230
+    
+    #Need to compute the true anomoly nu by solving the Kepler time problem
+    #get M0 (Mean anomoly) of nu0
+    M0 = KeplerTime(e,nu0)
+    
+    #Compute mean motion n= 2pi/T
+    n = np.sqrt(muEarth/a**3)
+    
+    #Compute Mean anomoly now
+    
+    M = M0 + n*t
+
+    #Solve
+    nu = KeplerAngle(e,M)
+    
+    #Compute the postion and veloctiy vectors in perifocal coordinates,
+    #assuming an eliptical orbit
+    #Magnitudes of the vectors (Elliptical orbit)  
+    rmag = a * (1-e**2)/(1+e*np.cos(nu))
+    vmag = (muEarth*(2/rmag - 1/a))**(1/2)* 1000 # Want this in m/s, for better weighting of the fit
+
+    rperi = rmag*np.array([np.cos(nu),np.sin(nu),np.zeros(len(nu))])
+    vperi = vmag*np.array([-np.sin(nu),np.cos(nu),np.zeros(len(nu))])
+    
+    #Rotate to ECI
+    (r,v) = perifocalToGeoCentric(rperi,vperi,Omega,inclin,w)
+    #Stack as a state vector
+    x = np.vstack((r,v))
+    #Curve fitting we actually want the vector transposed
+    x = x.transpose()
+    return x
+
+def perifocalToGeoCentric(Rin,Vin,Omega,inclin,w):
+    """
+    Convert from perifocal frame to ECI
+    """
+    #Create the rotation matricies
+    rotationMatrix = np.matmul(np.matmul(EulerZ(Omega), EulerX(inclin)), EulerZ(w))
+    
+    R = np.matmul(rotationMatrix , Rin)
+    V = np.matmul(rotationMatrix , Vin)
+    return (R,V)
+
+
+
+def EulerX(theta):
+    """
+    EulerX Matrix
+    """
+    Rx = np.array([[1,0,0],[0,np.cos(theta),-np.sin(theta)],[0,np.sin(theta),np.cos(theta)]])
+    return Rx
+
+
+def EulerZ(theta):
+    """    
+    EulerZ Matrix
+    """
+    Rz = np.array([[np.cos(theta),-np.sin(theta),0],[np.sin(theta),np.cos(theta),0],[0,0,1]])
+    return Rz
 
 if __name__ == "__main__":
     main()
