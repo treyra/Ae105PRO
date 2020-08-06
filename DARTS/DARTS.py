@@ -57,7 +57,6 @@ def main():
                             [0,.5,.5],
                             [0,.75,.75]])
 
-    print(init_deputy)
 
     # compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
@@ -95,15 +94,12 @@ def main():
     '''
 
     #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 10 seconds
-    time = np.arange(0,12*24*3600,3600)
+    time = np.arange(0,12*24*3600,60)
     print("start")
     
  
     
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
-    print(np.shape(orbitState))
-    print(orbitState)
-    print(orbitState[0])
     #Plot the computed dynamics
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -124,6 +120,7 @@ def main():
     plt.draw()
     
     #Try feeding into our cost function
+    print("Cost:")
     print(costFunction(time,orbitState,30))
     plt.show()
     
@@ -236,6 +233,7 @@ def costFunction(t,stateVector,lookAngle):
 
     #Compute the cost to set up the orbit, and maintain it
     orbitCost = computeOrbitCost(t,stateVector)
+    print(orbitCost)
 
     #Compute the science merit that offsets the cost
     scienceMerit = computeScienceMerit(t,stateVector,lookAngle)
@@ -257,7 +255,8 @@ def computeOrbitCost(t,stateVector):
         that use t)
     stateVector : array, shape (len(t), len(state))
         State throughout the orbit at each time step. State should be 
-        (x,y,z,vx,vy,vz) stacked for each space craft
+        (x,y,z,vx,vy,vz) stacked for each space craft. First 6 elements
+        should be the chief orbit in Xu Wang Parameters
     lookAngle : double (default 0)
         Angle the target direction makes with the nadir direction, 
         positive defined as a right handed rotation about the along
@@ -270,8 +269,20 @@ def computeOrbitCost(t,stateVector):
     
     """
     
-    return 0
+    #Compute the number of space craft in the formation
+    numSC = int(len(stateVector[0])/6)
 
+    #Compute delta-V to initialize orbit
+    deltaV = 0
+    for i in range(numSC - 1):
+        initialV = stateVector[0,3+6*(i+1):6+6*(i+1)] * 1000 #Want in m/s
+        print(initialV)
+        deltaV += np.linalg.norm(initialV)
+
+    #Exponentiate to give cost
+    return np.exp(deltaV)
+
+#TODO: Consider consolidating to clean up
 def computeScienceMerit(t,stateVector,lookAngle=0):
     """
     Return a science merit score for the given orbit trajectory. 
@@ -286,7 +297,8 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         Time at which each state is provided
     stateVector : array, shape (len(t), len(state))
         State throughout the orbit at each time step. State should be 
-        (x,y,z,vx,vy,vz) stacked for each space craft
+        (x,y,z,vx,vy,vz) stacked for each space craft. First 6 elements
+        should be the chief orbit in Xu Wang Parameters
     lookAngle : double (default 0)
         Angle the target direction makes with the nadir direction, 
         positive defined as a right handed rotation about the along
@@ -300,7 +312,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     """
 
     #Compute the number of space craft in the formation
-    numSC = int(len(stateVector[0]/6))
+    numSC = int(len(stateVector[0])/6) #UNUSED
     
     #Define targets/ s/c position to see them
 
@@ -340,15 +352,20 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         row = int(np.min((719,np.max((0,np.round((-lat+89.75)*4))))))
         col = int(np.min((1439,np.max((0,np.round((lon+180)*4))))))
         vegH[i] = elevationData[row,col]
-        #Check if we're over a target!
-        if vegH[i]  > 0:
-            #Compute the baseline
-            baselines[i] = computeBaseline(stateVector[i])
-            print(baselines)
-            #Compute the ambiguity
-            seperations[i] = computeMaxSeperation(stateVector[i])
-            print(seperations)
-
+        ##Check if we're over a target!
+        #if vegH[i]  > 0:
+        #    #Compute the baseline
+        #    baselines[i] = computeBaseline(stateVector[i])
+        #    print(baselines)
+        #    #Compute the ambiguity
+        #    seperations[i] = computeMaxSeperation(stateVector[i])
+        #    print(seperations)
+        
+        #Compute the baseline
+        baselines[i] = computeBaseline(stateVector[i],lookAngle)
+        #Compute the ambiguity
+        seperations[i] = computeMaxSeperation(stateVector[i],lookAngle)
+    
     #Now loop through and see how often we violate our constraints:
     #   Resolution > vegH/5
     #   ambiguity > vegH
@@ -371,28 +388,27 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     ambiguities = np.zeros(len(t))
     numViolateRes = 0
     numViolateAmb = 0
+    #Currently giving score as # of times better than constraint (1/5 of veg height)
+    score = 0
     for i in range(len(t)):
-        print(i)
-        print("baselines")
-        print(baselines[i])
-        print (seperations[i])
-        resolutions[i] = lam * r0s[i] / (2 * baselines[i])
+        resolutions[i] = lam * r0s[i] / (2 * baselines[i]*1000) #Convert to meters
         ambiguities[i] = lam * r0s[i] / (2 * seperations[i])
+        #Check if over a  target!
         #Note if violate baseline/ambiguity constraint, and how often
-
-        if resolutions[i] < vegH[i]/5:
-            numViolateRes +=1
-        if ambiguities[i] < vegH[i]:
-            numViolateAmb +=1
-
-
+        if vegH[i]  > 0:
+            if resolutions[i] > vegH[i]/5:
+                numViolateRes +=1
+            if ambiguities[i] < vegH[i]:
+                numViolateAmb +=1
+            score += (vegH[i]/resolutions[i])/5
+    print(len(vegH))
+    print(len(np.where(vegH > 0)[0]))
     print(resolutions)
 
     print("Violations:")
     print(numViolateRes)
     print(numViolateAmb)
-    #Score
-    return np.sum(resolutions)
+    return score
 
     
     #TODO, account for starting position of the Earth
@@ -457,8 +473,14 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
     -------
     groundTrack : array, shape (len(r), 2)
         The latitude and longitude of the look trajectory along the 
-        Earth's surface
+        Earth's surface in degrees
+    r0 : double
+        The distance in km from the space craft to the target position
+        on the surface of the Earth.
     """
+
+    #Convert look angle to rads
+    rlookAngle = np.radians(lookAngle)
 
     #Compute the radial and unit vector
     rhat = x/np.linalg.norm(x) #Also xhat, as this is the x direction in LVLH
@@ -466,32 +488,39 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
 
 
     #Compute the view unit vector by rotating the -rhat vector around the yhat vector by the look angle
-    rotate = Rotation.from_rotvec(np.radians(lookAngle) * yhat)
+    rotate = Rotation.from_rotvec(rlookAngle * yhat)
     lookVector = rotate.apply(-rhat) #UNUSED
 
     #Compute the angle we need to rotate rhat by to get look target using law of sines
     #(we know the look angle and its opposite side (radius of the Earth)
-    rotationAngle =  180 - ( np.linalg.norm(x)* np.abs(lookAngle)/(6378.1363 * 1000) + lookAngle)
+    wideAng = np.arcsin(np.linalg.norm(x)* np.sin(np.abs(rlookAngle))/(6378.1363))
+    rotationAngle =  np.pi - (wideAng + rlookAngle)
+    #Compute r0, distance from chief to the target, also using the law of sines
+    r0 = np.sin(rotationAngle)*(6378.1363)/np.sin(rlookAngle)
+
+    #Check if physical or we got the wrong quadrant
+    if r0 > np.linalg.norm(x):
+        #wideAng was in wrong quadrant so should have been wideAng = np.pi - wideAng
+        rotationAngle = wideAng - rlookAngle
+        r0 = np.sin(rotationAngle)*(6378.1363)/np.sin(rlookAngle)
     
     #Rotate rhat the opposite way we rotated the lookVector
-    rotate2 = Rotation.from_rotvec(-np.sign(lookAngle)*np.radians(rotationAngle) * yhat)
+    rotate2 = Rotation.from_rotvec(-np.sign(lookAngle)*rotationAngle * yhat)
     targetVector = rotate2.apply(rhat)
 
     #Convert into lon/lat using the fact that we are on a sphere
     longitude = np.arctan2(targetVector[1],targetVector[0])
-    latitude = np.arctan2(targetVector[2],np.sqrt(targetVector[1]**2+targetVector[0]**2))
+    latitude = np.degrees(np.arctan2(targetVector[2],np.sqrt(targetVector[1]**2+targetVector[0]**2)))
 
     #And account for the Earth's rotation by subtracting off Earth's rotation
-    longitude = longitude - t0* 4.178074346064814**(-3) *np.pi/180;
+    longitude = np.degrees(longitude - t0* 4.178074346064814**(-3) *np.pi/180);
+    longitude = np.mod(longitude,360)
 
-    #Compute r0, distance from chief to the target, also using the law of sines
-    r0 = rotationAngle*(6378.1363 * 1000)/lookAngle
     
     #stack up the output
     groundTrack = np.vstack((latitude,longitude))
     return (groundTrack.transpose(),r0)
 
-#TODO: Implement projection onto look angle
 def computeBaseline(stateVector, lookAngle=0):
     """
     Return the baseline for the formation at the current time of the orbit.
@@ -534,19 +563,13 @@ def computeBaseline(stateVector, lookAngle=0):
     #bestPair = np.zeros(2)
     bestLn = 0
     #Loop over combinations
-    print("Positions:")
-    print(positions)
-    print("candiadateBaseline")
     for i in range(len(positions)-1):
         for j in range(len(positions) - 1 - i):
             candiadateBaseline = positions[i] - positions[j+i+1]
-            print(candiadateBaseline)
             #Project onto the look angle and subtract this off to get component perpendicular to the look angle
             candiadateLn = np.linalg.norm(candiadateBaseline - np.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline))
             if candiadateLn > bestLn:
                 bestLn = candiadateLn
-    print("best")
-    print(bestLn)
     return bestLn
 
 def computeMaxSeperation(stateVector, lookAngle=0):
@@ -580,6 +603,9 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     for i in range(len(positions)):
         positions[i] = stateVector[i*6:i*6+3]
     
+    #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
+    positions[0] = np.zeros(3)
+
     #Compute the look angle unit vector
     lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
     
@@ -587,8 +613,9 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     #Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
     #angle. Will then remove the along track dimension and get a 1D arrangement and sort them
     projectedPositions = np.zeros((int(len(stateVector)/6),2))
-    for i in range(len(positions)):
-        positions[i] =  positions[i] - np.dot(positions[i],lookVector)*positions[i]/np.linalg.norm(positions[i])
+    #Only loop through deputies, as chief will be at [0,0,0] by definition
+    for i in range(len(positions)-1):
+        positions[i+1] =  positions[i+1] - np.dot(positions[i+1],lookVector)*positions[i+1]/np.linalg.norm(positions[i+1])
         #Remove the along track (y) component
         projectedPositions[i] = np.array([positions[i,0],positions[i,2]])
 
