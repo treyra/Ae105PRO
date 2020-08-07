@@ -13,8 +13,9 @@ import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
 import matplotlib.animation as animation
+from mayavi import mlab
 
-
+#TODO: Make Earth radius / J2/ etc class constants?
 
 def main():
     #Run on nominal NISAR mission
@@ -186,6 +187,44 @@ def main():
     #
     #ani.save("demo4.mp4", writer=writer)
 
+#Methods for performing a genetic algorithm on various swarm setups
+def optimize():
+    for iterations in range(10):
+        pass
+
+
+def mutate(state,numOffspring,stdDeviation=.05):
+    """
+    Generates new random initial swarm configurations
+    given a state to mutate from. The new states will
+    be arranged in Gaussian fashion around the given 
+    state with the specified standard deviation.
+
+    Parameters
+    ----------
+    state : array, shape(3*numDeputies)
+        initial deputy spatial configurations of the
+        swarm. Should be (x,y,z) of each deputy in order
+    numOffspring : int
+        number of new positions to generate about this one
+    stdDeviation : double (default = .05)
+        standard Deviation of the normal distribution used
+        to generate new arrangements
+
+    Returns
+    ---------
+    offspring : array shape(numOffspring,3)
+        Mutated swarm initial positions
+    """
+
+    #Create the output array
+    offspring = np.zeros((numOffspring,3))
+
+    #
+
+
+
+
 
 def animate(i,orbitData,ax):
     print(i)
@@ -334,6 +373,9 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         (groundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefState,yhat,t[i],lookAngle)
 
     
+    #Function for visualizing the ground tracks
+    visualize(np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData)
+
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
     seperations = np.zeros(len(t))
@@ -514,12 +556,80 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
 
     #And account for the Earth's rotation by subtracting off Earth's rotation
     longitude = np.degrees(longitude - t0* 4.178074346064814**(-3) *np.pi/180);
-    longitude = np.mod(longitude,360)
-
+    longitude = np.mod(longitude,360)              
     
     #stack up the output
     groundTrack = np.vstack((latitude,longitude))
     return (groundTrack.transpose(),r0)
+
+def visualize(latitude,longitude,elevationData):
+    """
+    Plots a 3D visualization of the target ground track
+
+    Parameters
+    ----------
+    latitude : array shape (len(t))
+        list of latitudes at each time to visualize
+    longitude : array shape (len(t))
+        list of longitudes at each time to visualize
+    """
+
+    earthRadius = 6378.1363
+
+    ##Plot Ground track
+    #fig = plt.figure()
+    #ax = fig.gca(projection='3d')
+    #
+    #
+    #groundTrack = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])*earthRadius
+    #print(np.shape(groundTrack))
+    #print(groundTrack[:,0])
+    #ax.plot(groundTrack[0],groundTrack[1],groundTrack[2])
+    #
+    ##Plot a sphere
+    #
+    #u, v = np.mgrid[0:2*np.pi:100j, 0:np.pi:50j]
+    #x = np.cos(u)*np.sin(v)*earthRadius*.9
+    #y = np.sin(u)*np.sin(v)*earthRadius*.9
+    #z = np.cos(v)*earthRadius*.9
+    #
+    #
+    #surf = ax.plot_surface(x,y,z,cmap=plt.cm.Spectral)
+    #surf.set_alpha(.5)
+
+    #Plot the elevation data
+
+
+
+    #plt.show()
+    
+
+    #Plot Ground track
+    #fig = plt.figure()
+    #ax = fig.gca(projection='3d')
+    
+    
+    groundTrack = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])*earthRadius
+    #print(np.shape(groundTrack))
+    #print(groundTrack[:,0])
+    #ax.plot(groundTrack[0],groundTrack[1],groundTrack[2])
+    
+    #Plot a sphere
+    
+    u, v = np.mgrid[0:2*np.pi:100j, 0:np.pi:50j]
+    x = np.cos(u)*np.sin(v)*earthRadius
+    y = np.sin(u)*np.sin(v)*earthRadius
+    z = np.cos(v)*earthRadius
+    
+    
+    #s = mlab.mesh(x, y, z)
+    mlab.plot3d(groundTrack[0],groundTrack[1],groundTrack[2],line_width = 100)
+    mlab.show()
+
+    #Plot the elevation data
+    pass
+
+
 
 def computeBaseline(stateVector, lookAngle=0):
     """
