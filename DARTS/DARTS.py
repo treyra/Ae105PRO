@@ -41,9 +41,9 @@ def main():
     num_deputy = 5
 
 
-    mu = 398600.4418  #gravitational constant
-    r_e = 6378.1363   # Earth Radius 
-    J2 = 1082.64*10**(-6) #J2 Constant
+    mu = 398600.432896939164493230  #gravitational constant
+    r_e = 6378.136  # Earth Radius 
+    J2 = 0.001082627 #J2 Constant
 
     #Initial positions of DEPUTIES (Chief at 0,0,0)
     #init_deputy = np.array([[-.5,-.1,0],
@@ -101,6 +101,34 @@ def main():
  
     
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
+
+    #Compare with matlab sim
+    #TODO: REMOVE
+    #cheifPos = np.genfromtxt('C:\\Users\\trey_\\Documents\\Research\\DARTS\\Code\\chiefOrbitData.csv',delimiter=',')
+    #t = np.genfromtxt('C:\\Users\\trey_\\Documents\\Research\\DARTS\\Code\\chiefTime.csv',delimiter=',')
+    #targetGroundTracks = np.zeros((len(cheifPos),2))
+    #groundTracks = np.zeros((len(t),2))
+    #
+    ##Distances to the target
+    #r0s = np.zeros(len(t))
+    #for i in range(len(targetGroundTracks)):
+    #    
+    #    chiefRad = cheifPos[i,0:3]
+    #    chiefVel = cheifPos[i,3:6]
+    #    #Compute along track unit vector
+    #    yhat = chiefVel - np.dot(chiefVel,chiefRad/np.linalg.norm(chiefRad))*chiefVel/np.linalg.norm(chiefVel)
+    #    yhat = yhat/np.linalg.norm(yhat)
+    #    #Compute where we are looking
+    #    (targetGroundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefRad,yhat,t[i],30)
+    #
+    #
+    #    #Compute ground track with no look angle for visualization as well
+    #    groundTracks[i] = groundAngleTrackComputation(chiefRad,yhat,t[i],0)[0]
+    #
+    ##Function for visualizing the ground tracks
+    #visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),None)
+
+
     #Plot the computed dynamics
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -358,23 +386,29 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     #Load the elevation data in from https://webmap.ornl.gov/ogc/dataset.jsp?ds_id=10023 at .25 degree resolution
     #If finer resolution is desired the hard coding will need to be changed
     elevationData = np.genfromtxt('elevationData.txt',delimiter=' ',skip_header=5) #Units, meters
-    #bottom left corner corresponds to -180 W -90 S in this projection, so upper right is 179.75E 89.75N
+    #bottom left corner corresponds to -180 W -90 S in this data, so upper right is 179.75E 89.75N
 
     #Compute the ground track of the center of the swath of the target location over the orbit
     #Time,ground track
+    targetGroundTracks = np.zeros((len(t),2))
     groundTracks = np.zeros((len(t),2))
+
     #Distances to the target
     r0s = np.zeros(len(t))
-    for i in range(len(groundTracks)):
-        #translating back to state vecotr from the orbital elements
+    for i in range(len(targetGroundTracks)):
+        #translating back to state vector from the orbital elements
         chiefState = stateVector[i,0] * np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[1,0,0])
         #Compute along track unit vector
         yhat = np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[0,1,0])
-        (groundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefState,yhat,t[i],lookAngle)
+        #Compute where we are looking
+        (targetGroundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefState,yhat,t[i],lookAngle)
 
     
+        #Compute ground track with no look angle for visualization as well
+        groundTracks[i] = groundAngleTrackComputation(chiefState,yhat,t[i],0)[0]
+
     #Function for visualizing the ground tracks
-    visualize(np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData)
+    visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData)
 
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
@@ -383,7 +417,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
 
     #Use the current target ground position to determine if we are over a target
     #TODO: Incorporate the look angle functionality (add offset to ground track computation? or to the positioning function?)
-    for i,position in enumerate(groundTracks):
+    for i,position in enumerate(targetGroundTracks):
         #Find lat/lon of the chief
         lat = position[0]
         lon = position[1]
@@ -452,42 +486,6 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
     print(numViolateAmb)
     return score
 
-    
-    #TODO, account for starting position of the Earth
-    #TODO: Verify that the origin lines up with 0 W 0 N
-def groundTrackComputation(r,t0):
-    """
-    Return a latitude/longitude trajectory along the Earth given the
-    position vector along the orbit and the starting time difference from
-    0:00 UT
-    
-    Parameters
-    ----------
-    r : array, shape (number of positions, 3)
-        Position vector of the space craft at each step, as (x,yz) in 
-        the ECI frame
-    t0 : double
-        Time since 0:00 UT 
-
-    Returns
-    -------
-    groundTrack : array, shape (len(r), 2)
-        The latitude and longitude of the trajectory along the Earth's 
-        surface
-    
-    """
-
-    #Convert into lon/lat using the fact that we are on a sphere
-    longitude = np.arctan2(r[:,2],r[:,1])
-    latitude = np.arctan2(r[:,3],np.sqrt(r[:,2]**2+r[:,1]**2))
-
-    #And account for the Earth's rotation by subtracting off Earth's rotation
-    longitude = longitude - t0* EARTH.rotD *pi/180;
-    
-    #stack up the output
-    groundTrack = np.vstack(latitude,longitude)
-    return groundTrack.transpose()
-
 
     #TODO, account for starting position of the Earth
     #TODO: Verify that the origin lines up with 0 W 0 N
@@ -521,34 +519,46 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
         on the surface of the Earth.
     """
 
-    #Convert look angle to rads
-    rlookAngle = np.radians(lookAngle)
+    earthRadius = 6378.1363
 
     #Compute the radial and unit vector
     rhat = x/np.linalg.norm(x) #Also xhat, as this is the x direction in LVLH
 
+    targetVector = -rhat
+    r0 = 0
+
+    #Check if lookAngle != 0
+    if lookAngle == 0:
+        r0 = np.linalg.norm(x) - earthRadius
+    else:
+
+        #Convert look angle to rads
+        rlookAngle = np.radians(lookAngle)
+
+        
 
 
-    #Compute the view unit vector by rotating the -rhat vector around the yhat vector by the look angle
-    rotate = Rotation.from_rotvec(rlookAngle * yhat)
-    lookVector = rotate.apply(-rhat) #UNUSED
 
-    #Compute the angle we need to rotate rhat by to get look target using law of sines
-    #(we know the look angle and its opposite side (radius of the Earth)
-    wideAng = np.arcsin(np.linalg.norm(x)* np.sin(np.abs(rlookAngle))/(6378.1363))
-    rotationAngle =  np.pi - (wideAng + rlookAngle)
-    #Compute r0, distance from chief to the target, also using the law of sines
-    r0 = np.sin(rotationAngle)*(6378.1363)/np.sin(rlookAngle)
+        #Compute the view unit vector by rotating the -rhat vector around the yhat vector by the look angle
+        rotate = Rotation.from_rotvec(rlookAngle * yhat)
+        lookVector = rotate.apply(-rhat) #UNUSED
 
-    #Check if physical or we got the wrong quadrant
-    if r0 > np.linalg.norm(x):
-        #wideAng was in wrong quadrant so should have been wideAng = np.pi - wideAng
-        rotationAngle = wideAng - rlookAngle
-        r0 = np.sin(rotationAngle)*(6378.1363)/np.sin(rlookAngle)
-    
-    #Rotate rhat the opposite way we rotated the lookVector
-    rotate2 = Rotation.from_rotvec(-np.sign(lookAngle)*rotationAngle * yhat)
-    targetVector = rotate2.apply(rhat)
+        #Compute the angle we need to rotate rhat by to get look target using law of sines
+        #(we know the look angle and its opposite side (radius of the Earth)
+        wideAng = np.arcsin(np.linalg.norm(x)* np.sin(np.abs(rlookAngle))/(earthRadius))
+        rotationAngle =  np.pi - (wideAng + rlookAngle)
+        #Compute r0, distance from chief to the target, also using the law of sines
+        r0 = np.sin(rotationAngle)*(earthRadius)/np.sin(rlookAngle)
+
+        #Check if physical or we got the wrong quadrant
+        if r0 > np.linalg.norm(x):
+            #wideAng was in wrong quadrant so should have been wideAng = np.pi - wideAng
+            rotationAngle = wideAng - rlookAngle
+            r0 = np.sin(rotationAngle)*(earthRadius)/np.sin(rlookAngle)
+        
+        #Rotate rhat the opposite way we rotated the lookVector
+        rotate2 = Rotation.from_rotvec(-np.sign(lookAngle)*rotationAngle * yhat)
+        targetVector = rotate2.apply(rhat)
 
     #Convert into lon/lat using the fact that we are on a sphere
     longitude = np.arctan2(targetVector[1],targetVector[0])
@@ -562,7 +572,7 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
     groundTrack = np.vstack((latitude,longitude))
     return (groundTrack.transpose(),r0)
 
-def visualize(latitude,longitude,elevationData):
+def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
     """
     Plots a 3D visualization of the target ground track
 
@@ -608,8 +618,9 @@ def visualize(latitude,longitude,elevationData):
     #fig = plt.figure()
     #ax = fig.gca(projection='3d')
     
-    
-    groundTrack = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])*earthRadius
+    #Compute target and s/c ground tracks
+    targetGroundTrack = np.array([np.cos(targetLongitude)*np.cos(targetLatitude),np.sin(targetLongitude)*np.cos(targetLatitude),np.sin(targetLatitude)])#*earthRadius
+    groundTrack  = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])#*.95#*earthRadius
     #print(np.shape(groundTrack))
     #print(groundTrack[:,0])
     #ax.plot(groundTrack[0],groundTrack[1],groundTrack[2])
@@ -617,14 +628,51 @@ def visualize(latitude,longitude,elevationData):
     #Plot a sphere
     
     u, v = np.mgrid[0:2*np.pi:100j, 0:np.pi:50j]
-    x = np.cos(u)*np.sin(v)*earthRadius
-    y = np.sin(u)*np.sin(v)*earthRadius
-    z = np.cos(v)*earthRadius
+    x = np.cos(u)*np.sin(v)#*earthRadius
+    y = np.sin(u)*np.sin(v)#*earthRadius
+    z = np.cos(v)#*earthRadius
     
+    print(np.shape(targetGroundTrack))
+    print(np.shape(groundTrack))
+    print(targetGroundTrack)
+    print(groundTrack)
+
+    mlab.figure()
+    s = mlab.mesh(x, y, z)
+    mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],tube_radius=None,color=(0,0,0))
+    mlab.plot3d(groundTrack[0],groundTrack[1],groundTrack[2],tube_radius=None,color=(1,0,0))
     
-    #s = mlab.mesh(x, y, z)
-    mlab.plot3d(groundTrack[0],groundTrack[1],groundTrack[2],line_width = 100)
+    #Compute where the elevation data goes and plot it
+    #First find where their is vegetation
+    mask = np.where(elevationData >0)
+    #Create flat arrays for lat long and veg height
+    flatVegData = np.zeros((len(mask[0]),3))
+
+    #Loop through and flatten
+    #bottom left corner corresponds to -180 W -90 S in this data, so upper right is 179.75E 89.75N
+    for i in range(len(mask[0])):
+        #Compute lat
+        flatVegData[i,0] = -.25 * mask[0][i] + 89.75
+        #Compute lon
+        flatVegData[i,1] = .25 * mask[1][i] - 180
+        #Get vegH
+        flatVegData[i,2] = elevationData[mask[0][i],mask[1][i]]
+    
+    #Compute the 3d coords
+    vegLocations = np.array([np.cos(flatVegData[:,1])*np.cos(flatVegData[:,0]),np.sin(flatVegData[:,1])*np.cos(flatVegData[:,0]),np.sin(flatVegData[:,0])])
+    
+    mlab.points3d(vegLocations[0],vegLocations[1],vegLocations[2],flatVegData[:,2],scale_factor = .0005)
     mlab.show()
+
+    #fig =  plt.figure()
+    #plt.plot(groundTrack[0],"b")
+    #plt.plot(groundTrack[1],"r")
+    #plt.plot(groundTrack[2],"g")
+    #plt.plot(targetGroundTrack[0],"b:")
+    #plt.plot(targetGroundTrack[1],"r:")
+    #plt.plot(targetGroundTrack[2],"g:")
+    #plt.show()
+
 
     #Plot the elevation data
     pass
