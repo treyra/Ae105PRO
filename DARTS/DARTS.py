@@ -62,7 +62,6 @@ def main():
     # compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
                                            [NoRev,altitude,ecc,inc,Om,om,f,5], init_deputy, mu,r_e,J2)
-    print(ys)
     #Compute orbit duration
     '''
     fpo = input_info[8] # time steps per orbit
@@ -99,35 +98,8 @@ def main():
     print("start")
     
  
-    
+    #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
-
-    #Compare with matlab sim
-    #TODO: REMOVE
-    #cheifPos = np.genfromtxt('C:\\Users\\trey_\\Documents\\Research\\DARTS\\Code\\chiefOrbitData.csv',delimiter=',')
-    #t = np.genfromtxt('C:\\Users\\trey_\\Documents\\Research\\DARTS\\Code\\chiefTime.csv',delimiter=',')
-    #targetGroundTracks = np.zeros((len(cheifPos),2))
-    #groundTracks = np.zeros((len(t),2))
-    #
-    ##Distances to the target
-    #r0s = np.zeros(len(t))
-    #for i in range(len(targetGroundTracks)):
-    #    
-    #    chiefRad = cheifPos[i,0:3]
-    #    chiefVel = cheifPos[i,3:6]
-    #    #Compute along track unit vector
-    #    yhat = chiefVel - np.dot(chiefVel,chiefRad/np.linalg.norm(chiefRad))*chiefVel/np.linalg.norm(chiefVel)
-    #    yhat = yhat/np.linalg.norm(yhat)
-    #    #Compute where we are looking
-    #    (targetGroundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefRad,yhat,t[i],30)
-    #
-    #
-    #    #Compute ground track with no look angle for visualization as well
-    #    groundTracks[i] = groundAngleTrackComputation(chiefRad,yhat,t[i],0)[0]
-    #
-    ##Function for visualizing the ground tracks
-    #visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),None)
-
 
     #Plot the computed dynamics
     fig = plt.figure()
@@ -148,16 +120,20 @@ def main():
     ax.plot([0],[0],[0],"ko")
     plt.draw()
     
-    #Try feeding into our cost function
-    print("Cost:")
-    print(costFunction(time,orbitState,30))
-    plt.show()
     
-    print('ax.azim {}'.format(ax.azim))
-    print('ax.elev {}'.format(ax.elev))
-    #Save the user selected "best" veiw for animation
-    azimuth = ax.azim
-    elevation = ax.elev
+    
+    #######################
+    ##  Functionality for visualizing the formation and animating
+    ##  TODO: Extract to auxiliary  method
+    #####################
+
+    #plt.show()
+    #
+    #print('ax.azim {}'.format(ax.azim))
+    #print('ax.elev {}'.format(ax.elev))
+    ##Save the user selected "best" veiw for animation
+    #azimuth = ax.azim
+    #elevation = ax.elev
     
     #fig = go.Figure()
     ## Add traces, one for each slider step
@@ -215,8 +191,35 @@ def main():
     #
     #ani.save("demo4.mp4", writer=writer)
 
+
+
+    #Compute orbit cost
+    cost = costFunction(time,orbitState,30)
+    print("Cost:")
+    print(cost)
+
+    #Show plots (Can only show one type (mayavi vs matplot lib) without multi threading)
+    mlab.show()
+
 #Methods for performing a genetic algorithm on various swarm setups
 def optimize():
+    #Initialize the first guesses
+    bestInit = np.array([[0,-.5,-.5,],
+                            [0,-.25,-.25],
+                            [0,.25,.25],
+                            [0,.5,.5],
+                            [0,.75,.75]])
+    secondBestInit = np.array([[0,-.5,-.5,],
+                            [0,-.25,-.25],
+                            [0,.25,.25],
+                            [0,.5,.5],
+                            [0,.75,.75]])
+    thirdBestInit = np.array([[0,-.5,-.5,],
+                            [0,-.25,-.25],
+                            [0,.25,.25],
+                            [0,.5,.5],
+                            [0,.75,.75]])
+    #Mutate, evaluate, and select
     for iterations in range(10):
         pass
 
@@ -248,7 +251,15 @@ def mutate(state,numOffspring,stdDeviation=.05):
     #Create the output array
     offspring = np.zeros((numOffspring,3))
 
-    #
+    #Now create random children 
+
+    for i in range(len(offspring)):
+        offspring[i,0] = np.random.normal(state[0],stdDeviation)
+        offspring[i,1] = np.random.normal(state[1],stdDeviation)
+        offspring[i,2] = np.random.normal(state[2],stdDeviation)
+
+    return offspring
+
 
 
 
@@ -477,13 +488,13 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
             if ambiguities[i] < vegH[i]:
                 numViolateAmb +=1
             score += (vegH[i]/resolutions[i])/5
-    print(len(vegH))
-    print(len(np.where(vegH > 0)[0]))
-    print(resolutions)
+    
+            
+    print(f"Time over targets: {len(np.where(vegH > 0)[0])/len(vegH)*100}%")
 
-    print("Violations:")
-    print(numViolateRes)
-    print(numViolateAmb)
+    print("Violations of Scientific Constraints")
+    print(f"Resolution Violations (>1/5 target height): {numViolateRes}")
+    print(f"Ambiguity Violations (< target height): {numViolateAmb}")
     return score
 
 
@@ -583,60 +594,23 @@ def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
     longitude : array shape (len(t))
         list of longitudes at each time to visualize
     """
-
     earthRadius = 6378.1363
 
-    ##Plot Ground track
-    #fig = plt.figure()
-    #ax = fig.gca(projection='3d')
-    #
-    #
-    #groundTrack = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])*earthRadius
-    #print(np.shape(groundTrack))
-    #print(groundTrack[:,0])
-    #ax.plot(groundTrack[0],groundTrack[1],groundTrack[2])
-    #
-    ##Plot a sphere
-    #
-    #u, v = np.mgrid[0:2*np.pi:100j, 0:np.pi:50j]
-    #x = np.cos(u)*np.sin(v)*earthRadius*.9
-    #y = np.sin(u)*np.sin(v)*earthRadius*.9
-    #z = np.cos(v)*earthRadius*.9
-    #
-    #
-    #surf = ax.plot_surface(x,y,z,cmap=plt.cm.Spectral)
-    #surf.set_alpha(.5)
-
-    #Plot the elevation data
-
-
-
-    #plt.show()
-    
-
-    #Plot Ground track
-    #fig = plt.figure()
-    #ax = fig.gca(projection='3d')
-    
+   
     #Compute target and s/c ground tracks
     targetGroundTrack = np.array([np.cos(targetLongitude)*np.cos(targetLatitude),np.sin(targetLongitude)*np.cos(targetLatitude),np.sin(targetLatitude)])#*earthRadius
     groundTrack  = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])#*.95#*earthRadius
-    #print(np.shape(groundTrack))
-    #print(groundTrack[:,0])
-    #ax.plot(groundTrack[0],groundTrack[1],groundTrack[2])
+
     
     #Plot a sphere
-    
     u, v = np.mgrid[0:2*np.pi:100j, 0:np.pi:50j]
     x = np.cos(u)*np.sin(v)#*earthRadius
     y = np.sin(u)*np.sin(v)#*earthRadius
     z = np.cos(v)#*earthRadius
-    
-    print(np.shape(targetGroundTrack))
-    print(np.shape(groundTrack))
-    print(targetGroundTrack)
-    print(groundTrack)
 
+    #Create a Mayavi mlab figure. This is a package that provides matlab-like plotting capabilites, and better
+    #3D capabilities than matplot lib. Requires vtk to be installed for visualization, and may require a downgraded
+    #version of vtk to run (9.0 instead of 8.2 caused issues, developed with vtk 8.1 and Mayavi 4.7.1
     mlab.figure()
     s = mlab.mesh(x, y, z)
     mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],tube_radius=None,color=(0,0,0))
@@ -658,24 +632,20 @@ def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
         #Get vegH
         flatVegData[i,2] = elevationData[mask[0][i],mask[1][i]]
     
+    
+        
     #Compute the 3d coords
-    vegLocations = np.array([np.cos(flatVegData[:,1])*np.cos(flatVegData[:,0]),np.sin(flatVegData[:,1])*np.cos(flatVegData[:,0]),np.sin(flatVegData[:,0])])
+    vegLocations = np.array([np.cos(np.radians(flatVegData[:,1]))*np.cos(np.radians(flatVegData[:,0])),
+                             np.sin(np.radians(flatVegData[:,1]))*np.cos(np.radians(flatVegData[:,0])),
+                             np.sin(np.radians(flatVegData[:,0]))])
     
     mlab.points3d(vegLocations[0],vegLocations[1],vegLocations[2],flatVegData[:,2],scale_factor = .0005)
-    mlab.show()
+    mlab.draw()
 
     #fig =  plt.figure()
-    #plt.plot(groundTrack[0],"b")
-    #plt.plot(groundTrack[1],"r")
-    #plt.plot(groundTrack[2],"g")
-    #plt.plot(targetGroundTrack[0],"b:")
-    #plt.plot(targetGroundTrack[1],"r:")
-    #plt.plot(targetGroundTrack[2],"g:")
+    #plt.plot(flatVegData[:,1],flatVegData[:,0],".")
     #plt.show()
 
-
-    #Plot the elevation data
-    pass
 
 
 
