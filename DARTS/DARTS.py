@@ -8,16 +8,23 @@ from scipy.spatial.transform import Rotation
 import pro_lib
 import numpy as np
 import math
-#For visualization
-import pandas as pd
-from mpl_toolkits.mplot3d import Axes3D
-import seaborn as sns
-import matplotlib.animation as animation
-from mayavi import mlab
+#For parallel evaluation
+from multiprocessing import Pool
+
+
 
 #TODO: Make Earth radius / J2/ etc class constants?
 
 def main():
+    #Demo cost computation and visualization
+    #demo()
+
+    #Perform optimization
+    optimize()
+
+
+
+def demo():
     #Run on nominal NISAR mission
     #Sun Sync periodic, N = 173, D = 12
     #alt = 747, i = 98.4, e = 0 (assumed), other params unknown
@@ -174,7 +181,8 @@ def main():
     #
     #fig.show()
 
-
+    #For visualization, only import when animating
+    #import matplotlib.animation as animation
     #orbitData = np.array([orbitState[:,6::6],orbitState[:,7::6],orbitState[:,8::6]])
     #Writer = animation.writers['ffmpeg']
     #writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
@@ -194,7 +202,7 @@ def main():
 
 
     #Compute orbit cost
-    cost = costFunction(time,orbitState,30)
+    cost = costFunction(time,orbitState,30,visualize=True)
     print("Cost:")
     print(cost)
 
@@ -204,11 +212,11 @@ def main():
 #Methods for performing a genetic algorithm on various swarm setups
 def optimize():
     #Initialize the first guesses
-    bestInit = np.array([[0,-.5,-.5,],
-                            [0,-.25,-.25],
-                            [0,.25,.25],
-                            [0,.5,.5],
-                            [0,.75,.75]])
+    bestInit = np.array([[-0.03556277, -0.37034736, -0.51622331],#Result of the first optimization
+                         [-0.09674387,  0.00165808, -0.49137764],
+                         [-0.07089611, -0.04730056,  0.09727178],
+                         [-0.34381464,  0.39668226,  0.54366059],
+                         [ 0.15938267,  0.83681107,  0.70741172]])
     secondBestInit = np.array([[0,-.5,-.5,],
                             [0,-.25,-.25],
                             [0,.25,.25],
@@ -219,12 +227,124 @@ def optimize():
                             [0,.25,.25],
                             [0,.5,.5],
                             [0,.75,.75]])
+    numDeputies = len(bestInit)
+
+    #Time we integrate each orbit over
+    time = np.arange(0,12*24*3600,60)
+    # assigning parameters 
+    
+   
+    # orbital parameters, wrapped in a dictionary
+
+    orbParams = {"time":time,
+                "NoRev":173,
+                "altitude":747,
+                "ecc":0,
+                "inc":98.4,
+                "Om":0,
+                "om":0,
+                "f":0,
+                "num_deputy":5,
+                "mu":398600.432896939164493230,  #gravitational constant
+                "r_e":6378.136,  # Earth Radius 
+                "J2":0.001082627} #J2 Constant
+
     #Mutate, evaluate, and select
     for iterations in range(10):
-        pass
+        #Mutate to get states to evaluate:
+        statesToEval = np.zeros((10,numDeputies,3))
+        
+        #First 5 states are bestInit and mutations, next 3 are second best, last 2 are thirdBest
+        statesToEval[0] = bestInit
+        statesToEval[5] = secondBestInit
+        statesToEval[8] = thirdBestInit
+
+        statesToEval[1:5] = mutate(bestInit,4)
+        statesToEval[6:8] = mutate(secondBestInit,2)
+        statesToEval[9] = mutate(thirdBestInit,1)
+
+        #Pack up these and the orbit params in a tuple for multiprocessing
+        params = [[statesToEval[0],orbParams]]
+        for i in range(len(statesToEval)-1):
+            params.append([statesToEval[i+1],orbParams])
+        params = tuple(params)
+        print(params)
+        #Now loop through and score!
+        #costs = np.zeros(10)
+        #Will do this using multi-processing to parallelize
+        #Using Pool as a context manager to ensure we close out properly 
+        with Pool(processes=10) as pool:
+            #Applies each state to the evaluate method and submits to the pool,
+            #then waits for them to all return
+            costs = pool.starmap(evalOrbit,params)
+        print(costs)
+
+        #Evaluate what has the lowest cost
+
+        #Get indexes of lowest cost
+        costs = np.array(costs)
+        indexes = costs.argsort()[:3]
+
+        #reassign
+        bestInt = statesToEval[indexes[0]]
+        secondBestInit = statesToEval[indexes[1]]
+        thirdBestInit = statesToEval[indexes[2]]
+
+    #Now print out the optimal formation and visulaize!
+    print("Best Initial Conditions:")
+    print(bestInt)
+
+    #Heavy module, import locally
+    from mayavi import mlab
+    
+
+    #Compute orbit cost again for display
+    cost = evalOrbit(bestInt,orbParams,visualize=True)
+    print("Cost:")
+    print(cost)
+
+    #Show visualization
+    mlab.show()
+
+    
+    #Plot the computed dynamics
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
+    ax.set_xlabel("x, radial out from Earth (km)")
+    ax.set_ylabel("y, along track (km)")
+    ax.set_zlabel("z, cross track (km)")
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
+    ax.azim = -100
+    ax.elev = 43
+    for i in range(num_deputy):
+    
+        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
+    
+    ax.plot([0],[0],[0],"ko")
+    plt.show()
 
 
-def mutate(state,numOffspring,stdDeviation=.05):
+def evalOrbit(state,orbParams,visualize=False):
+    print("Entered eval")
+    # compute initial conditions for the chief and deputy
+    ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant",
+                                            [orbParams["NoRev"],orbParams["altitude"],orbParams["ecc"],orbParams["inc"],orbParams["Om"],orbParams["om"],orbParams["f"],orbParams["num_deputy"]],
+                                            state,orbParams["mu"],orbParams["r_e"],orbParams["J2"])
+
+    #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
+    orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,orbParams["time"],args=(orbParams["mu"],orbParams["r_e"],orbParams["J2"],orbParams["num_deputy"]))
+    
+    #ASSUMED LOOK ANGLE OF 30 Degrees! TODO: pass in
+    print("left eval")
+    return costFunction(orbParams["time"],orbitState,30,visualize)
+
+
+
+
+def mutate(states,numOffspring,stdDeviation=.05):
     """
     Generates new random initial swarm configurations
     given a state to mutate from. The new states will
@@ -233,7 +353,7 @@ def mutate(state,numOffspring,stdDeviation=.05):
 
     Parameters
     ----------
-    state : array, shape(3*numDeputies)
+    states : array, shape(numDeputies,3)
         initial deputy spatial configurations of the
         swarm. Should be (x,y,z) of each deputy in order
     numOffspring : int
@@ -249,14 +369,16 @@ def mutate(state,numOffspring,stdDeviation=.05):
     """
 
     #Create the output array
-    offspring = np.zeros((numOffspring,3))
+    offspring = np.zeros((numOffspring,len(states),3))
 
     #Now create random children 
 
     for i in range(len(offspring)):
-        offspring[i,0] = np.random.normal(state[0],stdDeviation)
-        offspring[i,1] = np.random.normal(state[1],stdDeviation)
-        offspring[i,2] = np.random.normal(state[2],stdDeviation)
+
+        for j in range(len(states)):
+            offspring[i,j,0] = np.random.normal(states[j,0],stdDeviation)
+            offspring[i,j,1] = np.random.normal(states[j,1],stdDeviation)
+            offspring[i,j,2] = np.random.normal(states[j,2],stdDeviation)
 
     return offspring
 
@@ -281,7 +403,7 @@ def animate(i,orbitData,ax):
     
     ax.plot([0],[0],[0],"ko")
 
-def costFunction(t,stateVector,lookAngle):
+def costFunction(t,stateVector,lookAngle,visualize=False):
     """
     Return a cost value for the given orbit trajectory. Intended to compare 
     for a single orbit. TODO: Lifetime better?
@@ -311,10 +433,10 @@ def costFunction(t,stateVector,lookAngle):
 
     #Compute the cost to set up the orbit, and maintain it
     orbitCost = computeOrbitCost(t,stateVector)
-    print(orbitCost)
+    #print(orbitCost)
 
     #Compute the science merit that offsets the cost
-    scienceMerit = computeScienceMerit(t,stateVector,lookAngle)
+    scienceMerit = computeScienceMerit(t,stateVector,lookAngle,visualize)
 
     return (orbitCost - scienceMerit)
 
@@ -354,14 +476,14 @@ def computeOrbitCost(t,stateVector):
     deltaV = 0
     for i in range(numSC - 1):
         initialV = stateVector[0,3+6*(i+1):6+6*(i+1)] * 1000 #Want in m/s
-        print(initialV)
+        #print(initialV)
         deltaV += np.linalg.norm(initialV)
 
     #Exponentiate to give cost
     return np.exp(deltaV)
 
 #TODO: Consider consolidating to clean up
-def computeScienceMerit(t,stateVector,lookAngle=0):
+def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
     """
     Return a science merit score for the given orbit trajectory. 
     Intended to be over a single orbit 
@@ -414,12 +536,13 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         #Compute where we are looking
         (targetGroundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefState,yhat,t[i],lookAngle)
 
-    
-        #Compute ground track with no look angle for visualization as well
-        groundTracks[i] = groundAngleTrackComputation(chiefState,yhat,t[i],0)[0]
+        if visulaizeTrajectory:
+            #Compute ground track with no look angle for visualization as well
+            groundTracks[i] = groundAngleTrackComputation(chiefState,yhat,t[i],0)[0]
 
     #Function for visualizing the ground tracks
-    visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData)
+    if visulaizeTrajectory:
+        visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData)
 
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
@@ -485,8 +608,10 @@ def computeScienceMerit(t,stateVector,lookAngle=0):
         if vegH[i]  > 0:
             if resolutions[i] > vegH[i]/5:
                 numViolateRes +=1
+                score -= 10000 #Heavily penalize constraint violations
             if ambiguities[i] < vegH[i]:
                 numViolateAmb +=1
+                score -= 10000 #Heavily penalize constraint violations
             score += (vegH[i]/resolutions[i])/5
     
             
@@ -594,6 +719,10 @@ def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
     longitude : array shape (len(t))
         list of longitudes at each time to visualize
     """
+    
+    #Heavy module, import locally
+    from mayavi import mlab
+    
     earthRadius = 6378.1363
 
    
