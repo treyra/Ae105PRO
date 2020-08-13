@@ -17,10 +17,10 @@ from multiprocessing import Pool
 
 def main():
     #Demo cost computation and visualization
-    #demo()
+    demo()
 
     #Perform optimization
-    optimize()
+    #optimize()
 
 
 
@@ -59,11 +59,17 @@ def demo():
     #                        [.5,.1,0],
     #                        [.75,.15,0]])
 
-    init_deputy = np.array([[0,-.5,-.5,],
-                            [0,-.25,-.25],
-                            [0,.25,.25],
-                            [0,.5,.5],
-                            [0,.75,.75]])
+    #init_deputy = np.array([[0,-.5,-.5,],
+    #                        [0,-.25,-.25],
+    #                        [0,.25,.25],
+    #                        [0,.5,.5],
+    #                        [0,.75,.75]])
+
+    init_deputy = np.array([[-0.11474911, -0.28277769, -0.41374357],
+                              [ 0.11759513,  0.35926752, -0.29420415],
+                              [-0.4380676,   0.13452622,  0.16840377],
+                              [-0.80578882,  0.30974955,  0.41924403],
+                              [ 0.18555127,  0.55242093,  0.95920626]])
 
 
     # compute initial conditions for the chief and deputy
@@ -195,9 +201,9 @@ def demo():
     #ax.azim = azimuth
     #ax.elev = elevation
     #print(len(time))
-    #ani = animation.FuncAnimation(fig, animate, frames=len(time), fargs=(orbitData,ax))
+    #ani = animation.FuncAnimation(fig, animate, frames=500, fargs=(orbitData,ax))
     #
-    #ani.save("demo4.mp4", writer=writer)
+    #ani.save("opt1_1.mp4", writer=writer)
 
 
 
@@ -207,26 +213,27 @@ def demo():
     print(cost)
 
     #Show plots (Can only show one type (mayavi vs matplot lib) without multi threading)
+    from mayavi import mlab
     mlab.show()
 
 #Methods for performing a genetic algorithm on various swarm setups
 def optimize():
     #Initialize the first guesses
-    bestInit = np.array([[-0.03556277, -0.37034736, -0.51622331],#Result of the first optimization
-                         [-0.09674387,  0.00165808, -0.49137764],
-                         [-0.07089611, -0.04730056,  0.09727178],
-                         [-0.34381464,  0.39668226,  0.54366059],
-                         [ 0.15938267,  0.83681107,  0.70741172]])
-    secondBestInit = np.array([[0,-.5,-.5,],
-                            [0,-.25,-.25],
-                            [0,.25,.25],
-                            [0,.5,.5],
-                            [0,.75,.75]])
-    thirdBestInit = np.array([[0,-.5,-.5,],
-                            [0,-.25,-.25],
-                            [0,.25,.25],
-                            [0,.5,.5],
-                            [0,.75,.75]])
+    bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
+                              [ 0.11759513,  0.35926752, -0.29420415],
+                              [-0.4380676,   0.13452622,  0.16840377],
+                              [-0.80578882,  0.30974955,  0.41924403],
+                              [ 0.18555127,  0.55242093,  0.95920626]])
+    secondBestInit = np.array([[-8.45096242e-02, -3.19864051e-01, -5.20371558e-01],
+                              [-4.31575222e-04,  3.79166091e-01, -2.77960141e-01],
+                              [-2.93617169e-01,  7.21188588e-02,  1.57492712e-01],
+                              [-7.38234180e-01,  3.49160003e-01,  4.40035707e-01],
+                              [ 2.71468850e-01,  7.09862976e-01,  9.35197969e-01]])
+    thirdBestInit = np.array([[ 0.04914105, -0.38146571, -0.51124651],
+                         [ 0.0730455,   0.06972367, -0.50061731],
+                         [-0.19072884,  0.09952473,  0.01128832],
+                         [-0.51840071,  0.35818882,  0.47213096],
+                         [ 0.27650221,  1.00772683,  0.73223388]])
     numDeputies = len(bestInit)
 
     #Time we integrate each orbit over
@@ -298,8 +305,10 @@ def optimize():
     from mayavi import mlab
     
 
-    #Compute orbit cost again for display
-    cost = evalOrbit(bestInt,orbParams,visualize=True)
+    #Compute orbit and cost again for display
+    orbitState = computeOrbitDynamics(orbParams, bestInt) 
+    cost =  costFunction(orbParams["time"],orbitState,30,visualize=True)
+
     print("Cost:")
     print(cost)
 
@@ -319,30 +328,31 @@ def optimize():
     ax.set_zlim(-1, 1)
     ax.azim = -100
     ax.elev = 43
-    for i in range(num_deputy):
+    for i in range(orbParams["num_deputy"]):
     
         ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
     
     ax.plot([0],[0],[0],"ko")
     plt.show()
 
-
-def evalOrbit(state,orbParams,visualize=False):
+def evalOrbit(state,orbParams):
     print("Entered eval")
-    # compute initial conditions for the chief and deputy
-    ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant",
-                                            [orbParams["NoRev"],orbParams["altitude"],orbParams["ecc"],orbParams["inc"],orbParams["Om"],orbParams["om"],orbParams["f"],orbParams["num_deputy"]],
-                                            state,orbParams["mu"],orbParams["r_e"],orbParams["J2"])
-
-    #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
-    orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,orbParams["time"],args=(orbParams["mu"],orbParams["r_e"],orbParams["J2"],orbParams["num_deputy"]))
+    #Get orbit dyanmics
+    orbitState = computeOrbitDynamics(orbParams, state)
     
     #ASSUMED LOOK ANGLE OF 30 Degrees! TODO: pass in
     print("left eval")
-    return costFunction(orbParams["time"],orbitState,30,visualize)
+    return costFunction(orbParams["time"],orbitState,30)
 
-
-
+def computeOrbitDynamics(orbParams, state):
+    #compute initial conditions for the chief and deputy
+    ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant",
+                                            [orbParams["NoRev"],orbParams["altitude"],orbParams["ecc"],orbParams["inc"],orbParams["Om"],orbParams["om"],orbParams["f"],orbParams["num_deputy"]],
+                                            state,orbParams["mu"],orbParams["r_e"],orbParams["J2"])
+    
+    #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
+    orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,orbParams["time"],args=(orbParams["mu"],orbParams["r_e"],orbParams["J2"],orbParams["num_deputy"]))
+    return orbitState
 
 def mutate(states,numOffspring,stdDeviation=.05):
     """
@@ -483,7 +493,7 @@ def computeOrbitCost(t,stateVector):
     return np.exp(deltaV)
 
 #TODO: Consider consolidating to clean up
-def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
+def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False):
     """
     Return a science merit score for the given orbit trajectory. 
     Intended to be over a single orbit 
@@ -524,7 +534,11 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
     #Compute the ground track of the center of the swath of the target location over the orbit
     #Time,ground track
     targetGroundTracks = np.zeros((len(t),2))
-    groundTracks = np.zeros((len(t),2))
+    
+    
+    #Don't create these unless we're going to plot them
+    if visualizeTrajectory:
+        groundTracks = np.zeros((len(t),2))
 
     #Distances to the target
     r0s = np.zeros(len(t))
@@ -536,14 +550,12 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
         #Compute where we are looking
         (targetGroundTracks[i],r0s[i]) = groundAngleTrackComputation(chiefState,yhat,t[i],lookAngle)
 
-        if visulaizeTrajectory:
+        if visualizeTrajectory:
+
             #Compute ground track with no look angle for visualization as well
             groundTracks[i] = groundAngleTrackComputation(chiefState,yhat,t[i],0)[0]
 
-    #Function for visualizing the ground tracks
-    if visulaizeTrajectory:
-        visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData)
-
+    
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
     seperations = np.zeros(len(t))
@@ -576,7 +588,15 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
         #Compute the ambiguity
         seperations[i] = computeMaxSeperation(stateVector[i],lookAngle)
     
+    #Function for visualizing the ground tracks
+    if visualizeTrajectory:
+        #visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData,baselines,seperations)
+        #Want to not have the groundtracks, for less clutter
+        visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),elevationData=elevationData,baselines=baselines,seperations=seperations)
+
+
     #Now loop through and see how often we violate our constraints:
+    """
     #   Resolution > vegH/5
     #   ambiguity > vegH
     #
@@ -592,6 +612,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
     #r0 = H/cos(theta), distance to target where H is the orbit altitude
     #p_delta,p_a = 2 for SAR
     #k = 1,2,3 (kth ambiguity, we'll take k = 1)
+    """
     
     lam = .09 #Units in meters
     resolutions = np.zeros(len(t))
@@ -608,10 +629,10 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visulaizeTrajectory=False):
         if vegH[i]  > 0:
             if resolutions[i] > vegH[i]/5:
                 numViolateRes +=1
-                score -= 10000 #Heavily penalize constraint violations
+                score -= 50000 #Heavily penalize constraint violations 
             if ambiguities[i] < vegH[i]:
                 numViolateAmb +=1
-                score -= 10000 #Heavily penalize constraint violations
+                score -= 50000 #Heavily penalize constraint violations
             score += (vegH[i]/resolutions[i])/5
     
             
@@ -660,11 +681,9 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
     #Compute the radial and unit vector
     rhat = x/np.linalg.norm(x) #Also xhat, as this is the x direction in LVLH
 
-    targetVector = -rhat
-    r0 = 0
-
     #Check if lookAngle != 0
     if lookAngle == 0:
+        targetVector = -rhat
         r0 = np.linalg.norm(x) - earthRadius
     else:
 
@@ -708,7 +727,7 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
     groundTrack = np.vstack((latitude,longitude))
     return (groundTrack.transpose(),r0)
 
-def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
+def visualize(targetLatitude,targetLongitude,latitude=None,longitude=None,elevationData=None,baselines=None,seperations=None):
     """
     Plots a 3D visualization of the target ground track
 
@@ -728,10 +747,13 @@ def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
    
     #Compute target and s/c ground tracks
     targetGroundTrack = np.array([np.cos(targetLongitude)*np.cos(targetLatitude),np.sin(targetLongitude)*np.cos(targetLatitude),np.sin(targetLatitude)])#*earthRadius
-    groundTrack  = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])#*.95#*earthRadius
-
     
-    #Plot a sphere
+    #Check if we are using the formation ground tracks, then plot them
+    if latitude is not None:
+        groundTrack  = np.array([np.cos(longitude)*np.cos(latitude),np.sin(longitude)*np.cos(latitude),np.sin(latitude)])#*.95#*earthRadius
+    
+    
+    #Plot a sphere for the earth
     u, v = np.mgrid[0:2*np.pi:100j, 0:np.pi:50j]
     x = np.cos(u)*np.sin(v)#*earthRadius
     y = np.sin(u)*np.sin(v)#*earthRadius
@@ -741,34 +763,66 @@ def visualize(targetLatitude,targetLongitude,latitude,longitude,elevationData):
     #3D capabilities than matplot lib. Requires vtk to be installed for visualization, and may require a downgraded
     #version of vtk to run (9.0 instead of 8.2 caused issues, developed with vtk 8.1 and Mayavi 4.7.1
     mlab.figure()
-    s = mlab.mesh(x, y, z)
-    mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],tube_radius=None,color=(0,0,0))
-    mlab.plot3d(groundTrack[0],groundTrack[1],groundTrack[2],tube_radius=None,color=(1,0,0))
+    s = mlab.mesh(x, y, z,colormap="pink") #Pick a neutral color map for the planet
     
-    #Compute where the elevation data goes and plot it
-    #First find where their is vegetation
-    mask = np.where(elevationData >0)
-    #Create flat arrays for lat long and veg height
-    flatVegData = np.zeros((len(mask[0]),3))
+    #Check if we are plotting vegitation
+    if elevationData is not None: 
+        #Compute where the elevation data goes and plot it
+        #First find where their is vegetation
+        mask = np.where(elevationData >0)
+        #Create flat arrays for lat long and veg height
+        flatVegData = np.zeros((len(mask[0]),3))
 
-    #Loop through and flatten
-    #bottom left corner corresponds to -180 W -90 S in this data, so upper right is 179.75E 89.75N
-    for i in range(len(mask[0])):
-        #Compute lat
-        flatVegData[i,0] = -.25 * mask[0][i] + 89.75
-        #Compute lon
-        flatVegData[i,1] = .25 * mask[1][i] - 180
-        #Get vegH
-        flatVegData[i,2] = elevationData[mask[0][i],mask[1][i]]
-    
-    
+        #Loop through and flatten
+        #bottom left corner corresponds to -180 W -90 S in this data, so upper right is 179.75E 89.75N
+        for i in range(len(mask[0])):
+            #Compute lat
+            flatVegData[i,0] = -.25 * mask[0][i] + 89.75
+            #Compute lon
+            flatVegData[i,1] = .25 * mask[1][i] - 180
+            #Get vegH
+            flatVegData[i,2] = elevationData[mask[0][i],mask[1][i]]
         
-    #Compute the 3d coords
-    vegLocations = np.array([np.cos(np.radians(flatVegData[:,1]))*np.cos(np.radians(flatVegData[:,0])),
-                             np.sin(np.radians(flatVegData[:,1]))*np.cos(np.radians(flatVegData[:,0])),
-                             np.sin(np.radians(flatVegData[:,0]))])
+        
+            
+        #Compute the 3d coords
+        vegLocations = np.array([np.cos(np.radians(flatVegData[:,1]))*np.cos(np.radians(flatVegData[:,0])),
+                                 np.sin(np.radians(flatVegData[:,1]))*np.cos(np.radians(flatVegData[:,0])),
+                                 np.sin(np.radians(flatVegData[:,0]))])
+        
+        mlab.points3d(vegLocations[0],vegLocations[1],vegLocations[2],flatVegData[:,2],scale_factor = .0005)
+
+    #Now plot the ground tracks
+
+    #Just plot the target ground track
+    if baselines is None and seperations is None:
+        mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],tube_radius=None,color=(0,0,0)) 
+        mlab.title("Target Ground Track Over Orbit")
+    #At least one of the features should be shown along the target ground track
+    elif baselines is not None:
+        mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],baselines,tube_radius=None) 
+        mlab.title("Target Ground Track Over Orbit, colored to indicate baseline")
+        #Plot second figure!
+        if seperations is not None:
+            mlab.figure()
+            s = mlab.mesh(x, y, z,colormap="pink") #Pick a neutral color map for the planet
+            mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],seperations,tube_radius=None) 
+            #Replot veg data too if necessary
+            if elevationData is not None: 
+                mlab.points3d(vegLocations[0],vegLocations[1],vegLocations[2],flatVegData[:,2],scale_factor = .0005)
+            mlab.title("Target Ground Track Over Orbit, colored to indicate separations")
+    #Just the sperations should be shown
+    else:
+        mlab.plot3d(targetGroundTrack[0],targetGroundTrack[1],targetGroundTrack[2],seperations,tube_radius=None) 
+        mlab.title("Target Ground Track Over Orbit, colored to indicate separations")
     
-    mlab.points3d(vegLocations[0],vegLocations[1],vegLocations[2],flatVegData[:,2],scale_factor = .0005)
+    
+    
+    #Plot the swarm ground track too (only on one of the figures, if two made)
+    if latitude is not None:
+        mlab.plot3d(groundTrack[0],groundTrack[1],groundTrack[2],tube_radius=None,color=(1,0,0))
+
+
     mlab.draw()
 
     #fig =  plt.figure()
