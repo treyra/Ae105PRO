@@ -12,10 +12,16 @@ import math
 from multiprocessing import Pool
 
 
+#Class constants (Earth parameters) can be overwritten locally or when calling the utility methods
+mu = 398600.432896939164493230  #gravitational constant
+r_e = 6378.136  # Earth Radius 
+J2 = 0.001082627 #J2 Constant
 
-#TODO: Make Earth radius / J2/ etc class constants?
+
+
 
 def main():
+
     #Demo cost computation and visualization
     demo()
 
@@ -24,9 +30,18 @@ def main():
 
 
 
+
+
 def demo():
+    """
+    Function that demonstrates the scoring of a
+    sample trajectory. The orbit used is based off the
+    NISAR mission
+    """
+
+
     #Run on nominal NISAR mission
-    #Sun Sync periodic, N = 173, D = 12
+    #Sun Sync periodic, N = 173, D = 12 (slight errors, probably due to higher order terms than J2 or minor corrections to the publicly availible data)
     #alt = 747, i = 98.4, e = 0 (assumed), other params unknown
     #Swath width: 240 km
     
@@ -48,17 +63,11 @@ def demo():
     num_deputy = 5
 
 
-    mu = 398600.432896939164493230  #gravitational constant
-    r_e = 6378.136  # Earth Radius 
-    J2 = 0.001082627 #J2 Constant
+  
 
     #Initial positions of DEPUTIES (Chief at 0,0,0)
-    #init_deputy = np.array([[-.5,-.1,0],
-    #                        [-.25,-.05,0],
-    #                        [.25,.05,0],
-    #                        [.5,.1,0],
-    #                        [.75,.15,0]])
-
+    
+    #Original arbitrary seed
     #init_deputy = np.array([[0,-.5,-.5,],
     #                        [0,-.25,-.25],
     #                        [0,.25,.25],
@@ -75,36 +84,7 @@ def demo():
     # compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
                                            [NoRev,altitude,ecc,inc,Om,om,f,5], init_deputy, mu,r_e,J2)
-    #Compute orbit duration
-    '''
-    fpo = input_info[8] # time steps per orbit
-
-    # # Energy Matched 
-    # # J2 disturbance 
-    # # No drag
-
-    # k_J2 = (3/2)*J2*mu*(r_e**2)
-
-    # Orbital Elements
-    a = r_e + altitude           # semimajor axis [km] (Assumed circular orbit)
-    inc = inc*np.pi/180             # inclination [rad]
-
-
-    # Xu Wang Parameters
-    h = np.sqrt(a*(1 - ecc**2)*mu)           # angular momentum [km**2/s]
-
-
-     # effective period of the orbit
-    a_bar = a*(1 + 3*J2*r_e**2*(1-ecc**2)**0.5/(4*h**4/mu**2)*(3*np.cos(inc)**2 - 1))**(-2/3)  
-    period = 2*np.pi/np.sqrt(mu)*a_bar**(3/2)  
- 
-
-    #  # simulation time
-    time = np.linspace(0,NoRev*period,int(period/(fpo)))  
-    # print(time)
-    # orbit_num = time/period               # time vector with units of orbits instead of seconds
-                                          # orbit = period of non J2 orbit
-    '''
+    
 
     #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 10 seconds
     time = np.arange(0,12*24*3600,60)
@@ -114,110 +94,37 @@ def demo():
     #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
 
-    #Plot the computed dynamics
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
-    ax.set_xlabel("x, radial out from Earth (km)")
-    ax.set_ylabel("y, along track (km)")
-    ax.set_zlabel("z, cross track (km)")
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
-    ax.azim = -100
-    ax.elev = 43
-    for i in range(num_deputy):
-    
-        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
-    
-    ax.plot([0],[0],[0],"ko")
-    plt.draw()
-    
-    
-    
-    #######################
-    ##  Functionality for visualizing the formation and animating
-    ##  TODO: Extract to auxiliary  method
-    #####################
 
-    #plt.show()
-    #
-    #print('ax.azim {}'.format(ax.azim))
-    #print('ax.elev {}'.format(ax.elev))
-    ##Save the user selected "best" veiw for animation
-    #azimuth = ax.azim
-    #elevation = ax.elev
-    
-    #fig = go.Figure()
-    ## Add traces, one for each slider step
-    #for state in orbitState:
-    #    xs = state[6::6]
-    #    ys = state[7::6]
-    #    zs = state[8::6]
-    #    fig.add_trace(
-    #        go.Scatter3d(
-    #            visible=False,
-    #            x=xs,y=ys,z=zs),
-    #            range_x=[-1,1], range_y=[-1,1], range_z=[-1,1])
-    #
-    ## Make 0th trace visible
-    #fig.data[0].visible = True
-    #
-    ## Create and add slider
-    #steps = []
-    #for i in range(len(fig.data)):
-    #    step = dict(
-    #        method="update",
-    #        args=[{"visible": [False] * len(fig.data)}],
-    #    )
-    #    step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
-    #    steps.append(step)
-    #
-    #sliders = [dict(
-    #    active=0,
-    #    currentvalue={"prefix": "Frequency: "},
-    #    #pad={"t": 50},
-    #    steps=steps
-    #)]
-    #
-    #fig.update_layout(
-    #    sliders=sliders
-    #)
-    #
-    #
-    #fig.show()
-
-    #For visualization, only import when animating
-    #import matplotlib.animation as animation
-    #orbitData = np.array([orbitState[:,6::6],orbitState[:,7::6],orbitState[:,8::6]])
-    #Writer = animation.writers['ffmpeg']
-    #writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
-    #
-    #fig = plt.figure(figsize=(10,10))
-    #ax = fig.add_subplot(111, projection='3d')
-    #ax.set_xlim(-1, 1)
-    #ax.set_ylim(-1, 1)
-    #ax.set_zlim(-1, 1)
-    #ax.azim = azimuth
-    #ax.elev = elevation
-    #print(len(time))
-    #ani = animation.FuncAnimation(fig, animate, frames=500, fargs=(orbitData,ax))
-    #
-    #ani.save("opt1_1.mp4", writer=writer)
+    #Plot the computed dynamics (set optional parameters to configure for animation)
+    animationTools(num_deputy, orbitState, time)
 
 
 
     #Compute orbit cost
+
+    #For displaying plots 3D visulaizations
+    from mayavi import mlab
     cost = costFunction(time,orbitState,30,visualize=True)
     print("Cost:")
     print(cost)
 
-    #Show plots (Can only show one type (mayavi vs matplot lib) without multi threading)
-    from mayavi import mlab
+
     mlab.show()
 
 #Methods for performing a genetic algorithm on various swarm setups
 def optimize():
+    """
+    Function that searches for an optimal formation for the weighting
+    of science objectives versus set up costs. Utilizes a genetic algorithm
+    to mutate the given swarm initial configuration and search for better solutions.
+    As this is a random method, a sub optimal solution will be found, and there is
+    no guarantee a better solution will be found than those provided.
+
+    Currently all weightings are hard coded.
+    
+    """
+
+
     #Initialize the first guesses
     bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
                               [ 0.11759513,  0.35926752, -0.29420415],
@@ -238,23 +145,22 @@ def optimize():
 
     #Time we integrate each orbit over
     time = np.arange(0,12*24*3600,60)
-    # assigning parameters 
-    
-   
+     
     # orbital parameters, wrapped in a dictionary
 
-    orbParams = {"time":time,
-                "NoRev":173,
-                "altitude":747,
-                "ecc":0,
-                "inc":98.4,
-                "Om":0,
-                "om":0,
-                "f":0,
-                "num_deputy":5,
-                "mu":398600.432896939164493230,  #gravitational constant
-                "r_e":6378.136,  # Earth Radius 
-                "J2":0.001082627} #J2 Constant
+    orbParams = {"time":time, #time steps over which to evaluate
+                "NoRev":173, # revolutions considered, orbit altitude, orbit 
+                "altitude":747, #orbit altitude
+                "ecc":0, #orbit eccentricity
+                "inc":98.4, #orbit inclination (deg)
+                "Om":0, #orbit right ascension of ascending node (deg)
+                "om":0, #orbit argument of periapsis (deg)
+                "f":0, #orbit true anomaly (deg)
+                "num_deputy":5, 
+                "lookAngle":30, #(deg)
+                "mu":mu,  #gravitational parameter of Earth
+                "r_e":r_e,  # Earth Radius 
+                "J2":J2} #J2 Constant of Earth
 
     #Mutate, evaluate, and select
     for iterations in range(10):
@@ -275,9 +181,8 @@ def optimize():
         for i in range(len(statesToEval)-1):
             params.append([statesToEval[i+1],orbParams])
         params = tuple(params)
-        print(params)
+
         #Now loop through and score!
-        #costs = np.zeros(10)
         #Will do this using multi-processing to parallelize
         #Using Pool as a context manager to ensure we close out properly 
         with Pool(processes=10) as pool:
@@ -297,7 +202,7 @@ def optimize():
         secondBestInit = statesToEval[indexes[1]]
         thirdBestInit = statesToEval[indexes[2]]
 
-    #Now print out the optimal formation and visulaize!
+    #Now print out the optimal formation and visualize!
     print("Best Initial Conditions:")
     print(bestInt)
 
@@ -313,6 +218,7 @@ def optimize():
     print(cost)
 
     #Show visualization
+    #Blocks. Could multi thread to show the plot at the same time, or view one at a time as now.
     mlab.show()
 
     
@@ -336,15 +242,78 @@ def optimize():
     plt.show()
 
 def evalOrbit(state,orbParams):
+    """
+    Method to compute the cost of a proposed initial formation 
+    position over the course of the orbit
+    
+    Parameters
+    ----------
+    state : array, shape(numDeputies,3)
+        initial deputy spatial configurations of the
+        swarm. Should be (x,y,z) of each deputy in order
+    orbParams : dict
+        Dictionary of the orbital parameters used to compute
+        the orbit. Required values are:
+            time, NoRev, altitude, ecc, inc, Om, om, f, 
+            num_deputy, lookAngle, mu, r_e, J2
+
+            These are: time steps over which to evaluate, 
+            revolutions considered, orbit altitude, orbit 
+            eccentricity, orbit inclination (deg), orbit 
+            right ascension of ascending node (deg), orbit
+            argument of periapsis (deg), orbit true anomaly 
+            (deg), number of deputies, look angle (deg), 
+            earth gravitational parameter, radius of earth,
+            earth J2
+
+    Returns
+    ---------
+    cost : double
+        Cost of the orbit associated with this initial position
+    """
+
     print("Entered eval")
     #Get orbit dyanmics
     orbitState = computeOrbitDynamics(orbParams, state)
     
-    #ASSUMED LOOK ANGLE OF 30 Degrees! TODO: pass in
     print("left eval")
-    return costFunction(orbParams["time"],orbitState,30)
+    return costFunction(orbParams["time"],orbitState,orbParams["lookAngle"])
 
 def computeOrbitDynamics(orbParams, state):
+    """
+    Method to compute the orbit dynamics of from an initial formation 
+    position
+
+    Parameters
+    ----------
+    state : array, shape(numDeputies,3)
+        initial deputy spatial configurations of the
+        swarm. Should be (x,y,z) of each deputy in order
+    orbParams : dict
+        Dictionary of the orbital parameters used to compute
+        the orbit. Required values are:
+            time, NoRev, altitude, ecc, inc, Om, om, f, 
+            num_deputy, lookAngle, mu, r_e, J2
+
+            These are: time steps over which to evaluate, 
+            revolutions considered, orbit altitude, orbit 
+            eccentricity, orbit inclination (deg), orbit 
+            right ascension of ascending node (deg), orbit
+            argument of periapsis (deg), orbit true anomaly 
+            (deg), number of deputies, look angle (deg), 
+            earth gravitational parameter, radius of earth,
+            earth J2
+
+    Returns
+    ---------
+    orbitState : array shape(len(time),6*(num_deputy+1))
+        State vector of the orbit at each time specified.
+        First 6 states are the chief orbital parameters.
+        Each subsequent 6 states are a deputy's relative
+        state in LVLH as (x,y,z,vx,vy,vz)
+    """
+
+
     #compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant",
                                             [orbParams["NoRev"],orbParams["altitude"],orbParams["ecc"],orbParams["inc"],orbParams["Om"],orbParams["om"],orbParams["f"],orbParams["num_deputy"]],
@@ -398,6 +367,12 @@ def mutate(states,numOffspring,stdDeviation=.05):
 
 
 def animate(i,orbitData,ax):
+    """
+    Method to animate the ith frame of the orbit visualization
+    by drawing the position of each space craft at this time step
+    """
+
+
     print(i)
     ax.clear()
     ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
@@ -415,19 +390,29 @@ def animate(i,orbitData,ax):
 
 def costFunction(t,stateVector,lookAngle,visualize=False):
     """
-    Return a cost value for the given orbit trajectory. Intended to compare 
-    for a single orbit. TODO: Lifetime better?
-    
+    Return a cost value for the given orbit trajectory. This is the
+    cost to set up the orbit minus the science merit of the orbit.
+    The science merit is a per day score of the observational value
+    for the formation. For best results, give a representative length
+    of time (ie, time to repeat for a periodic orbit), and the score will
+    be normalized per day using the last time in t.
+
     Parameters
     ----------
     t : array
-        Time at which each state is provided
-    stateVector : array, shape (len(t), len(state)) TODO: DETERMINE IF WE HAVE ANY USE FOR ABS STATES
+        Time at which each state is provided, in seconds from the start of
+        the computation
+    stateVector : array, shape (len(t), len(state))
         State throughout the orbit at each time step. State should be 
-        (x,y,z,vx,vy,vz) stacked for each space craft
-        First s/c is the chief and should be in ECI coordinates
-        Each other s/c is a deputy and should be in RELATIVE
-        coordinates TODO: Error check?
+        (x,y,z,vx,vy,vz) stacked for each space craft in LVLH frame.
+        First s/c is the chief and should be instead the Xu Wang Parameters,
+        (r,vx,h,Omega,inc,theta)
+    lookAngle : double
+        Angle at which the formation is looking towards its target, defined 
+        as a right-handed rotation around the along track (+y) direction. 
+        0 is the nadir (-x) direction
+    visualize : Boolean (default=False)
+        When true, a 3D rendering of the orbit is generated
 
     Returns
     -------
@@ -438,8 +423,10 @@ def costFunction(t,stateVector,lookAngle,visualize=False):
     """
 
     #Cost function we are trying to evaluate
-    #J = 
-
+    #J = e^(deltaV to initialize) - Sum[(targetHeight[i])/(5*resolution[i])]/numDays
+    #Subject to constraints: (enforced by large cost penalty)
+    #   resolution[i] < targetHeight[i]/5
+    #   ambiguity[i] > targetHeight[i]
 
     #Compute the cost to set up the orbit, and maintain it
     orbitCost = computeOrbitCost(t,stateVector)
@@ -676,7 +663,6 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
         on the surface of the Earth.
     """
 
-    earthRadius = 6378.1363
 
     #Compute the radial and unit vector
     rhat = x/np.linalg.norm(x) #Also xhat, as this is the x direction in LVLH
@@ -684,7 +670,7 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
     #Check if lookAngle != 0
     if lookAngle == 0:
         targetVector = -rhat
-        r0 = np.linalg.norm(x) - earthRadius
+        r0 = np.linalg.norm(x) - r_e
     else:
 
         #Convert look angle to rads
@@ -700,16 +686,16 @@ def groundAngleTrackComputation(x,yhat,t0,lookAngle):
 
         #Compute the angle we need to rotate rhat by to get look target using law of sines
         #(we know the look angle and its opposite side (radius of the Earth)
-        wideAng = np.arcsin(np.linalg.norm(x)* np.sin(np.abs(rlookAngle))/(earthRadius))
+        wideAng = np.arcsin(np.linalg.norm(x)* np.sin(np.abs(rlookAngle))/(r_e))
         rotationAngle =  np.pi - (wideAng + rlookAngle)
         #Compute r0, distance from chief to the target, also using the law of sines
-        r0 = np.sin(rotationAngle)*(earthRadius)/np.sin(rlookAngle)
+        r0 = np.sin(rotationAngle)*(r_e)/np.sin(rlookAngle)
 
         #Check if physical or we got the wrong quadrant
         if r0 > np.linalg.norm(x):
             #wideAng was in wrong quadrant so should have been wideAng = np.pi - wideAng
             rotationAngle = wideAng - rlookAngle
-            r0 = np.sin(rotationAngle)*(earthRadius)/np.sin(rlookAngle)
+            r0 = np.sin(rotationAngle)*(r_e)/np.sin(rlookAngle)
         
         #Rotate rhat the opposite way we rotated the lookVector
         rotate2 = Rotation.from_rotvec(-np.sign(lookAngle)*rotationAngle * yhat)
@@ -742,7 +728,6 @@ def visualize(targetLatitude,targetLongitude,latitude=None,longitude=None,elevat
     #Heavy module, import locally
     from mayavi import mlab
     
-    earthRadius = 6378.1363
 
    
     #Compute target and s/c ground tracks
@@ -942,6 +927,135 @@ def computeMaxSeperation(stateVector, lookAngle=0):
             mu = sep
 
     return mu
+
+def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
+    """
+    #This code computes the time for a full orbit, if needed (unused since we know this orbit is nominally periodic over 12 days)
+    """
+
+    # Energy Matched 
+    # J2 disturbance 
+    # No drag
+
+    k_J2 = (3/2)*orbParams["J2"]*orbParams["mu"]*(orbParams["r_e"]**2)
+
+    # Orbital Elements
+    a = orbitParams["r_e"] + orbitParams["altitude"]           # semimajor axis [km] (Assumed circular orbit)
+    inc = orbitParams["inc"]*np.pi/180             # inclination [rad]
+
+
+    # Xu Wang Parameters
+    h = np.sqrt(a*(1 - orbitParams["ecc"]**2)*orbitParams["mu"])           # angular momentum [km**2/s]
+
+
+    # effective period of the orbit
+    a_bar = a*(1 + 3*orbitParams["J2"]*orbitParams["r_e"]**2*(1-orbitParams["ecc"]**2)**0.5/(4*h**4/orbitParams["mu"]**2)*(3*np.cos(inc)**2 - 1))**(-2/3)  
+    period = 2*np.pi/np.sqrt(orbitParams["mu"])*a_bar**(3/2)  
+ 
+
+    # simulation time
+    time = np.linspace(0,orbitParams["NoRev"]*period,int(period/(timeStepsPerOrbit)))  
+    
+    return time               # time vector with units of orbits instead of seconds
+
+    
+
+
+def animationTools(num_deputy, orbitState, time,azim=-100, elev=43, animate=False,frames=None,animationName="animation.mp4",sliders=False):
+    """
+    Helper method to animate or provide lightweight 
+    visualization of the formation dynamics. Several
+    optional parameters configure the type of visualization
+    or animation displayed
+    """
+    
+
+    #Plot the relative orbit tracks, at a provided or arbitrary view angle (found to work well for these visualizations)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
+    ax.set_xlabel("x, radial out from Earth (km)")
+    ax.set_ylabel("y, along track (km)")
+    ax.set_zlabel("z, cross track (km)")
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
+    ax.azim = azim
+    ax.elev = elev
+    for i in range(num_deputy):
+    
+        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
+    
+    ax.plot([0],[0],[0],"ko")
+    plt.show()
+    
+    if animate or sliders:
+        #Save the user selected "best" veiw for animation
+        azimuth = ax.azim
+        elevation = ax.elev
+    
+    #Show the orbit controlled by sliders (sort of works) if desired, so the user can manipulate the dynamics
+    if sliders:
+        fig = go.Figure()
+        # Add traces, one for each slider step
+        for state in orbitState:
+            xs = state[6::6]
+            ys = state[7::6]
+            zs = state[8::6]
+            fig.add_trace(
+                go.Scatter3d(
+                    visible=False,
+                    x=xs,y=ys,z=zs),
+                    range_x=[-1,1], range_y=[-1,1], range_z=[-1,1])
+        
+        # Make 0th trace visible
+        fig.data[0].visible = True
+        
+        # Create and add slider
+        steps = []
+        for i in range(len(fig.data)):
+            step = dict(
+                method="update",
+                args=[{"visible": [False] * len(fig.data)}],
+            )
+            step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+            steps.append(step)
+        
+        sliders = [dict(
+            active=0,
+            steps=steps
+        )]
+        
+        fig.update_layout(
+            sliders=sliders
+        )
+        
+        
+        fig.show()
+    
+    #Animate if desired
+    if animate:
+        #Check if user specified number of frames, or animate whole thing
+        if frames is None:
+            frames = len(time)
+
+
+        #Only import when animating
+        import matplotlib.animation as animation
+        orbitData = np.array([orbitState[:,6::6],orbitState[:,7::6],orbitState[:,8::6]])
+        Writer = animation.writers['ffmpeg']
+        writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
+        
+        fig = plt.figure(figsize=(10,10))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        ax.set_zlim(-1, 1)
+        ax.azim = azimuth
+        ax.elev = elevation
+        ani = animation.FuncAnimation(fig, animate, frames=frames, fargs=(orbitData,ax))
+        
+        ani.save(animationName, writer=writer)
 
 
 def keplerainOrbitModel(params,t):

@@ -1,19 +1,12 @@
 import time
-from multiprocessing import Pool
+import numpy as np
 
 
-def square(x):
-    print(f"start process:{x}")
-    square = x * x
-    print(f"square {x}:{square}")
-    time.sleep(1)
-    print(f"end process:{x}")
+def test(arr,test=len(arr)):
+    print(arr)
+    print(test)
 
 
 if __name__ == "__main__":
-    starttime = time.time()
-    pool = Pool()
-    pool.map(square, range(0, 5))
-    pool.close()
-    endtime = time.time()
-    print(f"Time taken {endtime-starttime} seconds")
+    testArr = np.array([0,1,2,3,4])
+    test(testArr)
