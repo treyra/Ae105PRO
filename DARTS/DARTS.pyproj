@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>DARTS</Name>
     <RootNamespace>DARTS</RootNamespace>
+    <TestFramework>unittest</TestFramework>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,12 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="DARTS.py" />
-    <Compile Include="test.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="test2.py">
-      <SubType>Code</SubType>
-    </Compile>
+    <Compile Include="orbitHelperFunctions.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
