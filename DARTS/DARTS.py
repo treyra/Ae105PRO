@@ -1,6 +1,7 @@
 import sys 
 import os
-sys.path.append(os.path.abspath("C:\\Users\\trey_\\Documents\\GitHub\\PROpy"))
+#For finding PROpy if not in the base directory (which it is in the default repo, developed seperatly though)
+#sys.path.append(os.path.abspath("C:\\Users\\trey_\\Documents\\GitHub\\PROpy"))
 
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
