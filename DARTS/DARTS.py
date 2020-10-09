@@ -25,7 +25,7 @@ J2 = 0.001082627 #J2 Constant
 def main():
 
     #Demo cost computation and visualization
-    #demo()
+    demo()
 
     #Perform optimization
     #optimize()
@@ -34,30 +34,30 @@ def main():
     #Exporting
 
 
-    bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
-                              [ 0.11759513,  0.35926752, -0.29420415],
-                              [-0.4380676,   0.13452622,  0.16840377],
-                              [-0.80578882,  0.30974955,  0.41924403],
-                              [ 0.18555127,  0.55242093,  0.95920626]])
-    #Time we integrate each orbit over
-    time = np.arange(0,12*24*3600,1)
-     
-    # orbital parameters, wrapped in a dictionary
-
-    orbParams = {"time":time, #time steps over which to evaluate
-                "NoRev":173, # revolutions considered, orbit altitude, orbit 
-                "altitude":747, #orbit altitude
-                "ecc":0, #orbit eccentricity
-                "inc":98.4, #orbit inclination (deg)
-                "Om":0, #orbit right ascension of ascending node (deg)
-                "om":0, #orbit argument of periapsis (deg)
-                "f":0, #orbit true anomaly (deg)
-                "num_deputy":5, 
-                "lookAngle":30, #(deg)
-                "mu":mu,  #gravitational parameter of Earth
-                "r_e":r_e,  # Earth Radius 
-                "J2":J2} #J2 Constant of Earth
-    exportOrbit(bestInit,orbParams)
+    #bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
+    #                          [ 0.11759513,  0.35926752, -0.29420415],
+    #                          [-0.4380676,   0.13452622,  0.16840377],
+    #                          [-0.80578882,  0.30974955,  0.41924403],
+    #                          [ 0.18555127,  0.55242093,  0.95920626]])
+    ##Time we integrate each orbit over
+    #time = np.arange(0,12*24*3600,1)
+    # 
+    ## orbital parameters, wrapped in a dictionary
+    #
+    #orbParams = {"time":time, #time steps over which to evaluate
+    #            "NoRev":173, # revolutions considered, orbit altitude, orbit 
+    #            "altitude":747, #orbit altitude
+    #            "ecc":0, #orbit eccentricity
+    #            "inc":98.4, #orbit inclination (deg)
+    #            "Om":0, #orbit right ascension of ascending node (deg)
+    #            "om":0, #orbit argument of periapsis (deg)
+    #            "f":0, #orbit true anomaly (deg)
+    #            "num_deputy":5, 
+    #            "lookAngle":30, #(deg)
+    #            "mu":mu,  #gravitational parameter of Earth
+    #            "r_e":r_e,  # Earth Radius 
+    #            "J2":J2} #J2 Constant of Earth
+    #exportOrbit(bestInit,orbParams)
 
 
 
@@ -74,6 +74,7 @@ def demo():
     #Sun Sync periodic, N = 173, D = 12 (slight errors, probably due to higher order terms than J2 or minor corrections to the publicly availible data)
     #alt = 747, i = 98.4, e = 0 (assumed), other params unknown
     #Swath width: 240 km
+    #Lambda = 9 cm (wavelenght) 
     
     #Assume a nominal number of 6 s/c, initialized in a line .25 km apart cross track, .05 km apart along track
     
@@ -104,11 +105,46 @@ def demo():
     #                        [0,.5,.5],
     #                        [0,.75,.75]])
 
-    init_deputy = np.array([[-0.11474911, -0.28277769, -0.41374357],
-                              [ 0.11759513,  0.35926752, -0.29420415],
-                              [-0.4380676,   0.13452622,  0.16840377],
-                              [-0.80578882,  0.30974955,  0.41924403],
-                              [ 0.18555127,  0.55242093,  0.95920626]])
+    #init_deputy = 25*np.array([[-2.06369808e+00, -7.89357624e+00, -1.30974571e+01],
+    #                            [ 1.82676515e-03,  9.59563707e+00, -7.03830178e+00],
+    #                            [-7.48477338e+00,  1.89994840e+00,  3.92002407e+00],
+    #                            [-1.87274650e+01,  8.51779952e+00,  1.07209308e+01],
+    #                            [ 6.94398501e+00,  1.79892775e+01,  2.37304517e+01]])  #Gives global res < 1 m, but fails res < target height/5 at all spots. Also has a s/c starting 187 km below the formation, could be problamatic
+
+    #Pretty good
+    #init_deputy = np.array([[0, -2, -200],
+    #                            [0,  1, -100],
+    #                            [0,  1,  100],
+    #                            [0,  2,  200],
+    #                            [0,  3,  300]])
+
+    #init_deputy = np.array([[ 3.37282993e-05, -1.99802409e+00, -2.01503656e+02],
+    #                        [ 3.54516369e-04,  9.93136414e-01, -1.01386407e+02],
+    #                        [ 4.48756400e-04,  1.00237461e+00,  9.94192366e+01],
+    #                        [ 3.98259557e-03,  2.00783511e+00,  2.00658956e+02],
+    #                        [-2.05875121e-03,  2.99748128e+00,  3.00494827e+02]])
+
+
+    #Best opt
+    init_deputy = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
+                              [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+                              [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
+                              [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+
+    #Try inputing 4th and 2nd phased by 25 mins (1st and 3rd dep), weird results (gives nearly no cross track, initial orb params matter!)
+    #init_deputy = np.array([[-9.89292835e-01, -5.88967841e+00, 6.78839696e-01],
+    #                        [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+    #                        [ 4.77522698e-01, -1.41643966e+00, -3.83697877e-01],
+    #                        [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+    #                        [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+
+    #Try inputing 4th and 2nd phased by 15 mins (1st and 3rd dep)
+    init_deputy = np.array([[-9.85731095e-02, -4.54044571e+00, -1.19098421e+02],
+                            [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+                            [ 5.73268771e-01, -2.32550782e-01,  5.97358312e+01],
+                            [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+                            [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
 
 
     # compute initial conditions for the chief and deputy
@@ -116,27 +152,42 @@ def demo():
                                            [NoRev,altitude,ecc,inc,Om,om,f,5], init_deputy, mu,r_e,J2)
     
 
-    #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 10 seconds
+    #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 60 seconds
     time = np.arange(0,12*24*3600,60)
     print("start")
-    
+    print(ys)
  
     #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
+
+    print(orbitState[15])
 
 
     #Plot the computed dynamics (set optional parameters to configure for animation)
     animationTools(orbitState, time)
 
+    #Create dictionary of other parameters to compute
 
+    otherData = {"maxResolution" : None, "minBaseline" : None, "minAmbiguity" : None, "maxSeparation" : None }
+    
 
     #Compute orbit cost
 
     #For displaying plots 3D visulaizations
     from mayavi import mlab
-    cost = costFunction(time,orbitState,30,visualize=True)
+    cost = costFunction(time,orbitState,30,visualize=True,otherData=otherData)
     print("Cost:")
     print(cost)
+
+    print("Max Resolution")
+    print(otherData["maxResolution"])
+    print("Min Baseline")
+    print(otherData["minBaseline"])
+    print("Min Ambiguity")
+    print(otherData["minAmbiguity"])
+    print("Max Separation")
+    print(otherData["maxSeparation"])
+
 
 
     mlab.show()
@@ -155,21 +206,37 @@ def optimize():
 
 
     #Initialize the first guesses
-    bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
-                              [ 0.11759513,  0.35926752, -0.29420415],
-                              [-0.4380676,   0.13452622,  0.16840377],
-                              [-0.80578882,  0.30974955,  0.41924403],
-                              [ 0.18555127,  0.55242093,  0.95920626]])
-    secondBestInit = np.array([[-8.45096242e-02, -3.19864051e-01, -5.20371558e-01],
-                              [-4.31575222e-04,  3.79166091e-01, -2.77960141e-01],
-                              [-2.93617169e-01,  7.21188588e-02,  1.57492712e-01],
-                              [-7.38234180e-01,  3.49160003e-01,  4.40035707e-01],
-                              [ 2.71468850e-01,  7.09862976e-01,  9.35197969e-01]])
-    thirdBestInit = np.array([[ 0.04914105, -0.38146571, -0.51124651],
-                         [ 0.0730455,   0.06972367, -0.50061731],
-                         [-0.19072884,  0.09952473,  0.01128832],
-                         [-0.51840071,  0.35818882,  0.47213096],
-                         [ 0.27650221,  1.00772683,  0.73223388]])
+    #thirdBestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
+    #                          [ 0.11759513,  0.35926752, -0.29420415],
+    #                          [-0.4380676,   0.13452622,  0.16840377],
+    #                          [-0.80578882,  0.30974955,  0.41924403],
+    #                          [ 0.18555127,  0.55242093,  0.95920626]])
+    #bestInit = np.array([[ -51.93800143, -199.96449099, -329.64782818],
+    #                          [   0.79769076,  239.48723456, -180.34991238],
+    #                          [-187.46690496,   45.8547833,   99.90378118],
+    #                          [-469.68270884,  214.79089232,  271.11808572],
+    #                          [ 181.69152816,  450.71127885,  593.6732575 ]])
+    #secondBestInit = np.array([[-2.06369808e+00, -7.89357624e+00, -1.30974571e+01],
+    #                            [ 1.82676515e-03,  9.59563707e+00, -7.03830178e+00],
+    #                            [-7.48477338e+00,  1.89994840e+00,  3.92002407e+00],
+    #                            [-1.87274650e+01,  8.51779952e+00,  1.07209308e+01],
+    #                            [ 6.94398501e+00,  1.79892775e+01,  2.37304517e+01]])
+
+    bestInit = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
+                              [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+                              [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
+                              [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+    secondBestInit = np.array([[ 3.37282993e-05, -1.99802409e+00, -2.01503656e+02],
+                         [ 3.54516369e-04,  9.93136414e-01, -1.01386407e+02],
+                         [ 4.48756400e-04,  1.00237461e+00,  9.94192366e+01],
+                         [ 3.98259557e-03,  2.00783511e+00,  2.00658956e+02],
+                         [-2.05875121e-03,  2.99748128e+00,  3.00494827e+02]])
+    thirdBestInit = np.array([[ 4.43109226e-04, -1.99043097e+00, -2.01873740e+02],
+                               [-9.60163002e-04,  9.85487053e-01, -9.88573185e+01],
+                               [ 3.31344996e-04,  1.00791516e+00,  1.00617566e+02],
+                               [-7.32023825e-05,  2.00842600e+00,  1.98757844e+02],
+                               [ 8.86752847e-04,  3.00459930e+00,  2.99882953e+02]])
     numDeputies = len(bestInit)
 
     #Time we integrate each orbit over
@@ -258,9 +325,9 @@ def optimize():
     ax.set_xlabel("x, radial out from Earth (km)")
     ax.set_ylabel("y, along track (km)")
     ax.set_zlabel("z, cross track (km)")
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
+    ax.set_ylim(-100,100)
+    ax.set_zlim(-100,100)
+    ax.set_xlim(-100,100)
     ax.azim = -100
     ax.elev = 43
     for i in range(orbParams["num_deputy"]):
@@ -480,9 +547,14 @@ def mutate(states,numOffspring,stdDeviation=.05):
     for i in range(len(offspring)):
 
         for j in range(len(states)):
-            offspring[i,j,0] = np.random.normal(states[j,0],stdDeviation)
-            offspring[i,j,1] = np.random.normal(states[j,1],stdDeviation)
-            offspring[i,j,2] = np.random.normal(states[j,2],stdDeviation)
+            #offspring[i,j,0] = np.random.normal(states[j,0],stdDeviation)
+            #offspring[i,j,1] = np.random.normal(states[j,1],stdDeviation)
+            #offspring[i,j,2] = np.random.normal(states[j,2],stdDeviation)
+            #Trying constrained to be little to no radial motion, and much more cross track
+            offspring[i,j,0] = np.random.normal(states[j,0],stdDeviation/100)
+            offspring[i,j,1] = np.random.normal(states[j,1],stdDeviation/10)
+            offspring[i,j,2] = np.random.normal(states[j,2],stdDeviation*10)
+
 
     return offspring
 
@@ -527,7 +599,7 @@ def animate(i,orbitData,ax,title):
     
     ax.plot([0],[0],[0],"ko")
 
-def costFunction(t,stateVector,lookAngle,visualize=False):
+def costFunction(t,stateVector,lookAngle,visualize=False,otherData=None):
     """
     Return a cost value for the given orbit trajectory. This is the
     cost to set up the orbit minus the science merit of the orbit.
@@ -569,10 +641,11 @@ def costFunction(t,stateVector,lookAngle,visualize=False):
 
     #Compute the cost to set up the orbit, and maintain it
     orbitCost = computeOrbitCost(t,stateVector)
-    #print(orbitCost)
+    print("set up cost:")
+    print(orbitCost)
 
     #Compute the science merit that offsets the cost
-    scienceMerit = computeScienceMerit(t,stateVector,lookAngle,visualize)
+    scienceMerit = computeScienceMerit(t,stateVector,lookAngle,visualize,otherData)
 
     return (orbitCost - scienceMerit)
 
@@ -605,17 +678,18 @@ def computeOrbitCost(t,stateVector):
     #Compute the number of space craft in the formation
     numSC = int(len(stateVector[0])/6)
 
-    #Compute delta-V to initialize orbit
+    #Compute MAX delta-V to initialize orbit (as we want to know most expensive s/c to initialize)
     deltaV = 0
     for i in range(numSC - 1):
         initialV = stateVector[0,3+6*(i+1):6+6*(i+1)] * 1000 #Want in m/s
-        #print(initialV)
-        deltaV += np.linalg.norm(initialV)
+        print(initialV)
+        deltaV = np.maximum(deltaV,np.linalg.norm(initialV))
+        print(deltaV)
 
-    #Exponentiate to give cost
-    return np.exp(deltaV)
+    #Exponentiate to estimate mass cost. Assume cold gas thrusters with ~150 ISP
+    return np.exp(deltaV/150)
 
-def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False):
+def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,otherData=None):
     """
     Return a science merit score for the given orbit trajectory. 
     Intended to be over a single orbit 
@@ -733,8 +807,8 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False):
     #Currently giving score as # of times better than constraint (1/5 of veg height)
     score = 0
     for i in range(len(t)):
-        resolutions[i] = lam * r0s[i] / (2 * baselines[i]*1000) #Convert to meters
-        ambiguities[i] = lam * r0s[i] / (2 * separations[i])
+        resolutions[i] = lam * r0s[i]*1000 / (2 * baselines[i]*1000) #Convert to meters
+        ambiguities[i] = lam * r0s[i]*1000 / (2 * separations[i])
         #Check if over a  target!
         #Note if violate baseline/ambiguity constraint, and how often
         if vegH[i]  > 0:
@@ -745,6 +819,24 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False):
                 numViolateAmb +=1
                 score -= 50000 #Heavily penalize constraint violations
             score += (vegH[i]/resolutions[i])/5
+    
+    #Compute additional data as requested to pass out (such as min resolution, max baseline, etc.)
+    if otherData is not None:
+        #Other data is a dictionary of desired parameters. Check what is requested and compute
+        if "maxResolution" in otherData:
+            #Global max resolution (worst case)
+            otherData["maxResolution"] = np.max(resolutions)
+        if "minBaseline" in otherData:
+            #Global minimum baseline (worst case)
+            otherData["minBaseline"] = np.min(baselines)
+        if "minAmbiguity" in otherData:
+            #Global minimum Ambiguity (worst case)
+            otherData["minAmbiguity"] = np.min(ambiguities)
+        if "maxSeparation" in otherData:
+            #Global max separation (worst case)
+            otherData["maxSeparation"] = np.max(separations)
+            
+
     
     print(resolutions)   
     print(f"Time over targets: {len(np.where(vegH > 0)[0])/len(vegH)*100}%")
@@ -1165,9 +1257,9 @@ def animationTools(orbitState, time,azim=-100, elev=43, animate=False,frames=Non
     ax.set_xlabel("x, radial out from Earth (km)")
     ax.set_ylabel("y, along track (km)")
     ax.set_zlabel("z, cross track (km)")
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
+    #ax.set_xlim(-500, 500)
+    #ax.set_ylim(-500, 500)
+    #ax.set_zlim(-500, 500)
     ax.azim = azim
     ax.elev = elev
 
