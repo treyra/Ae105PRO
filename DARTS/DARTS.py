@@ -133,18 +133,18 @@ def demo():
                               [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
 
     #Try inputing 4th and 2nd phased by 25 mins (1st and 3rd dep), weird results (gives nearly no cross track, initial orb params matter!)
-    #init_deputy = np.array([[-9.89292835e-01, -5.88967841e+00, 6.78839696e-01],
-    #                        [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
-    #                        [ 4.77522698e-01, -1.41643966e+00, -3.83697877e-01],
-    #                        [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-    #                        [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
-
-    #Try inputing 4th and 2nd phased by 15 mins (1st and 3rd dep)
-    init_deputy = np.array([[-9.85731095e-02, -4.54044571e+00, -1.19098421e+02],
+    init_deputy = np.array([[-9.89292835e-01, -5.88967841e+00, 6.78839696e-01],
                             [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
-                            [ 5.73268771e-01, -2.32550782e-01,  5.97358312e+01],
+                            [ 4.77522698e-01, -1.41643966e+00, -3.83697877e-01],
                             [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
                             [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+
+    #Try inputing 4th and 2nd phased by 15 mins (1st and 3rd dep)
+    #init_deputy = np.array([[-9.85731095e-02, -4.54044571e+00, -1.19098421e+02],
+    #                        [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+    #                        [ 5.73268771e-01, -2.32550782e-01,  5.97358312e+01],
+    #                        [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+    #                        [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
 
 
     # compute initial conditions for the chief and deputy
@@ -174,6 +174,9 @@ def demo():
     #Compute orbit cost
 
     #For displaying plots 3D visulaizations
+    #This is a package that provides matlab-like plotting capabilites, and better
+    #3D capabilities than matplot lib. Requires vtk to be installed for visualization, and may require a downgraded
+    #version of vtk to run (9.0 instead of 8.2 caused issues, developed with vtk 8.1 and Mayavi 4.7.1
     from mayavi import mlab
     cost = costFunction(time,orbitState,30,visualize=True,otherData=otherData)
     print("Cost:")
@@ -775,6 +778,9 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         separations[i] = computeMaxSeperation(stateVector[i],lookAngle)
     
     #Function for visualizing the ground tracks
+    #TO DO: Roll in other visulaization methods?
+    #TO DO: Add scales to the plots to quantify better
+    #TO DO: Consider looking at the resolution and ambiguities (projected possibly) rather than baselines and spereations
     if visualizeTrajectory:
         #visualize(np.radians(targetGroundTracks[:,0]),np.radians(targetGroundTracks[:,1]),np.radians(groundTracks[:,0]),np.radians(groundTracks[:,1]),elevationData,baselines,separations)
         #Want to not have the groundtracks, for less clutter
@@ -836,6 +842,20 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
             #Global max separation (worst case)
             otherData["maxSeparation"] = np.max(separations)
             
+    #Plot resolution and ambiguity over orbit
+    if visualizeTrajectory:
+        plt.figure()
+        plt.plot(resolutions)
+        plt.title("Resolution over the orbit")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Resolution (m)")
+        plt.figure()
+        plt.plot(ambiguities)
+        plt.title("Nearest ambiguity over the orbit")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Nearest Ambiguity (m)")
+        plt.show()
+
 
     
     print(resolutions)   
@@ -937,11 +957,11 @@ def visualize(targetLatitude,targetLongitude,latitude=None,longitude=None,elevat
 
     Parameters
     ----------
-    latitude : array shape (len(t))
+    targetLatitude : array shape (len(t))
         list of target latitudes at each time to 
         visualize, targets are where the formation
         is looking
-    longitude : array shape (len(t))
+    targetLongitude : array shape (len(t))
         list of target longitudes at each time to visualize
     latitude : array shape (len(t)) (optional)
         list of ground track latitudes at each time to 
