@@ -357,3 +357,4 @@ DARTS/elevationData.txt
 *.png
 /DARTS/orbitHelperFunctions.py
 *.nc
+/DARTS/sampleOrbitECI.csv
