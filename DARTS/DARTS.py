@@ -766,7 +766,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     score = 0
     for i in range(len(t)):
         resolutions[i] = lam * r0s[i]*1000 / (2 * baselines[i]*1000) #Convert to meters
-        ambiguities[i] = lam * r0s[i]*1000 / (2 * separations[i])
+        ambiguities[i] = lam * r0s[i]*1000 / (2 * separations[i]*1000)
         #Check if over a  target!
         #Note if violate baseline/ambiguity constraint, and how often
         if vegH[i]  > 0:
@@ -815,7 +815,12 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
 
     print("Violations of Scientific Constraints")
     print(f"Resolution Violations (>1/5 target height): {numViolateRes}")
+    print("Percentage of orbit below 1m resolution")
+    print(len(np.where(resolutions <= 1)[0])/len(resolutions))
+
     print(f"Ambiguity Violations (< target height): {numViolateAmb}")
+    print("Percentage of orbit above 30m ambiguity")
+    print(len(np.where(ambiguities >= 1)[0])/len(ambiguities))
     return score
 
 
