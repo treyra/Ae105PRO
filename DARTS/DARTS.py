@@ -33,7 +33,7 @@ def main():
 
     #Exporting
 
-
+    ##Deputy intial positions, LVLH, x,y,z for each deputy. 
     #bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
     #                          [ 0.11759513,  0.35926752, -0.29420415],
     #                          [-0.4380676,   0.13452622,  0.16840377],
@@ -91,7 +91,7 @@ def demo():
     om = 0
     f = 0
 
-    num_deputy = 5
+    num_deputy = 10
 
 
   
@@ -113,11 +113,16 @@ def demo():
                               [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
                               [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
                               [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02],
+                              [.5*-3.83257070e-04, .5*-1.99473235e+00, .5*-2.03232731e+02],
+                              [.5*-1.15320723e-03, .5* 1.00301564e+00, .5*-9.79559814e+01],
+                              [.5*-3.86408799e-05, .5* 9.86145073e-01, .5* 1.01980968e+02],
+                              [.5*-4.38965295e-04, .5* 2.00863582e+00, .5* 1.99040789e+02],
+                              [.5* 2.91370703e-04, .5* 3.01924746e+00, .5* 3.02111458e+02]])
 
     # compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
-                                           [NoRev,altitude,ecc,inc,Om,om,f,5], init_deputy, mu,r_e,J2)
+                                           [NoRev,altitude,ecc,inc,Om,om,f,num_deputy], init_deputy, mu,r_e,J2)
     
 
     #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 60 seconds
@@ -128,7 +133,6 @@ def demo():
     #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
 
-    print(orbitState[15])
 
 
     #Plot the computed dynamics (set optional parameters to configure for animation)
@@ -1064,6 +1068,8 @@ def computeBaseline(stateVector, lookAngle=0):
     #bestPair = np.zeros(2)
     bestLn = 0
     #Loop over combinations
+
+    #TODO: REMOVE THE ALONG TRACK COMPONENT AFTER. Cross track look angle may not be true, use Razi's formula. 
     for i in range(len(positions)-1):
         for j in range(len(positions) - 1 - i):
             candiadateBaseline = positions[i] - positions[j+i+1]
