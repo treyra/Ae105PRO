@@ -19,45 +19,62 @@ mu = 398600.432896939164493230  #gravitational constant
 r_e = 6378.136  # Earth Radius 
 J2 = 0.001082627 #J2 Constant
 
+#TODO
+#Fix projection algorithim
+#Use average ambiguity
+#Consider removing s/c at chief. <- can always add this assumption back in by fixing a s/c at 0,0,0
 
 
+def main(mode="demo"):
+    """
+    Main method of the orbit analysis tool. Call with the given mode to specifiy the type of function performed
 
-def main():
+    Parameters
+    ----------
+    mode : string
+        Specifies the type of function performed
+            demo: Demonstration of the cost function for a
+            (currently) hardcoded orbit.
+            optimize: Runs a genetic algorithm given (currently)
+            hardcoded current best designs to determine if better
+            designs exist nearby in parameter space
+            export: Exports orbit to a netCDF4 file. (Currently
+            the orbit is hardcoded)
+    """
+    if mode =="demo":
+        #Demo cost computation and visualization
+        demo()
+    elif mode == "optimize":
+        #Perform optimization WILL NOT WORK IF NOT RUN WITHOUT DEBUGGER ATTACHED
+        optimize()
+    elif mode == "export":
+        #Exporting
 
-    #Demo cost computation and visualization
-    demo()
-
-    #Perform optimization
-    #optimize()
-
-
-    #Exporting
-
-    ##Deputy intial positions, LVLH, x,y,z for each deputy. 
-    #bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
-    #                          [ 0.11759513,  0.35926752, -0.29420415],
-    #                          [-0.4380676,   0.13452622,  0.16840377],
-    #                          [-0.80578882,  0.30974955,  0.41924403],
-    #                          [ 0.18555127,  0.55242093,  0.95920626]])
-    ##Time we integrate each orbit over
-    #time = np.arange(0,12*24*3600,1)
-    # 
-    ## orbital parameters, wrapped in a dictionary
-    #
-    #orbParams = {"time":time, #time steps over which to evaluate
-    #            "NoRev":173, # revolutions considered, orbit altitude, orbit 
-    #            "altitude":747, #orbit altitude
-    #            "ecc":0, #orbit eccentricity
-    #            "inc":98.4, #orbit inclination (deg)
-    #            "Om":0, #orbit right ascension of ascending node (deg)
-    #            "om":0, #orbit argument of periapsis (deg)
-    #            "f":0, #orbit true anomaly (deg)
-    #            "num_deputy":5, 
-    #            "lookAngle":30, #(deg)
-    #            "mu":mu,  #gravitational parameter of Earth
-    #            "r_e":r_e,  # Earth Radius 
-    #            "J2":J2} #J2 Constant of Earth
-    #exportOrbit(bestInit,orbParams)
+        #Deputy intial positions, LVLH, x,y,z for each deputy. 
+        bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
+                                  [ 0.11759513,  0.35926752, -0.29420415],
+                                  [-0.4380676,   0.13452622,  0.16840377],
+                                  [-0.80578882,  0.30974955,  0.41924403],
+                                  [ 0.18555127,  0.55242093,  0.95920626]])
+        #Time we integrate each orbit over
+        time = np.arange(0,12*24*3600,1)
+         
+        # orbital parameters, wrapped in a dictionary
+        
+        orbParams = {"time":time, #time steps over which to evaluate
+                    "NoRev":173, # revolutions considered, orbit altitude, orbit 
+                    "altitude":747, #orbit altitude
+                    "ecc":0, #orbit eccentricity
+                    "inc":98.4, #orbit inclination (deg)
+                    "Om":0, #orbit right ascension of ascending node (deg)
+                    "om":0, #orbit argument of periapsis (deg)
+                    "f":0, #orbit true anomaly (deg)
+                    "num_deputy":5, 
+                    "lookAngle":30, #(deg)
+                    "mu":mu,  #gravitational parameter of Earth
+                    "r_e":r_e,  # Earth Radius 
+                    "J2":J2} #J2 Constant of Earth
+        exportOrbit(bestInit,orbParams)
 
 
 
@@ -68,7 +85,6 @@ def demo():
     sample trajectory. The orbit used is based off the
     NISAR mission
     """
-
 
     #Run on nominal NISAR mission
     #Sun Sync periodic, N = 173, D = 12 (slight errors, probably due to higher order terms than J2 or minor corrections to the publicly availible data)
@@ -91,11 +107,6 @@ def demo():
     om = 0
     f = 0
 
-    num_deputy = 10
-
-
-  
-
     #Initial positions of DEPUTIES (Chief at 0,0,0)
 
     #init_deputy = 25*np.array([[-2.06369808e+00, -7.89357624e+00, -1.30974571e+01],
@@ -105,20 +116,14 @@ def demo():
     #                            [ 6.94398501e+00,  1.79892775e+01,  2.37304517e+01]])  #Gives global res < 1 m, but fails res < target height/5 at all spots. Also has a s/c starting 187 km below the formation, could be problamatic
 
 
-    
-
-
     #Best opt
     init_deputy = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
                               [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
                               [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
                               [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02],
-                              [.5*-3.83257070e-04, .5*-1.99473235e+00, .5*-2.03232731e+02],
-                              [.5*-1.15320723e-03, .5* 1.00301564e+00, .5*-9.79559814e+01],
-                              [.5*-3.86408799e-05, .5* 9.86145073e-01, .5* 1.01980968e+02],
-                              [.5*-4.38965295e-04, .5* 2.00863582e+00, .5* 1.99040789e+02],
-                              [.5* 2.91370703e-04, .5* 3.01924746e+00, .5* 3.02111458e+02]])
+                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+
+    num_deputy = len(init_deputy)
 
     # compute initial conditions for the chief and deputy
     ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
@@ -133,15 +138,12 @@ def demo():
     #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
 
-
-
     #Plot the computed dynamics (set optional parameters to configure for animation)
     animationTools(orbitState, time)
 
     #Create dictionary of other parameters to compute
 
     otherData = {"maxResolution" : None, "minBaseline" : None, "minAmbiguity" : None, "maxSeparation" : None }
-    
 
     #Compute orbit cost
 
@@ -178,7 +180,6 @@ def optimize():
     Currently all weightings are hard coded.
     
     """
-
 
     
     bestInit = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
@@ -730,8 +731,8 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         
         #Compute the baseline
         baselines[i] = computeBaseline(stateVector[i],lookAngle)
-        #Compute the ambiguity
-        separations[i] = computeMaxSeperation(stateVector[i],lookAngle)
+        #Compute the median spacing
+        separations[i] = computeAverageSeperation(stateVector[i],lookAngle)
     
     #Function for visualizing the ground tracks
     #TO DO: Roll in other visulaization methods?
@@ -1036,8 +1037,8 @@ def computeBaseline(stateVector, lookAngle=0):
         State Vector of the swarm at the time to compute the baseline for.
         State should be (x,y,z,vx,vy,vz) stacked for each space craft. 
         x,y,z directions defined by the LVLH coordinate system, where
-        x is radially out from the Earth to the s/c, y is along track and
-        z is the orbit angular momentum.
+        x is radially out from the Earth to the s/c, y is along track (or 
+        tangential velocity) and z is the orbit angular momentum or cross track.
     lookAngle : double (default is 0)
         Angle between the nadir and target directions in degrees. Alternatively 
         the angle between the -x direction and the target direction. Note that
@@ -1069,17 +1070,19 @@ def computeBaseline(stateVector, lookAngle=0):
     bestLn = 0
     #Loop over combinations
 
-    #TODO: REMOVE THE ALONG TRACK COMPONENT AFTER. Cross track look angle may not be true, use Razi's formula. 
     for i in range(len(positions)-1):
         for j in range(len(positions) - 1 - i):
             candiadateBaseline = positions[i] - positions[j+i+1]
+            #Project onto the imaging plane (This is just removing the y component in this formulation)
+            #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
+            candiadateBaseline[1] = 0
             #Project onto the look angle and subtract this off to get component perpendicular to the look angle
             candiadateLn = np.linalg.norm(candiadateBaseline - np.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline))
             if candiadateLn > bestLn:
                 bestLn = candiadateLn
     return bestLn
 
-def computeMaxSeperation(stateVector, lookAngle=0):
+def computeAverageSeperation(stateVector, lookAngle=0):
     """
     Return the maximum cross track separation to estimate the ambiguity.
     
@@ -1101,7 +1104,7 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     Returns
     -------
     mu : double
-        Maximum gap between any two space craft perpendicular to the look angle
+        Average gap between any two space craft perpendicular to the look angle
         in the cross track plane
     """
     
@@ -1124,20 +1127,20 @@ def computeMaxSeperation(stateVector, lookAngle=0):
     for i in range(len(positions)-1):
         positions[i+1] =  positions[i+1] - np.dot(positions[i+1],lookVector)*positions[i+1]/np.linalg.norm(positions[i+1])
         #Remove the along track (y) component
+        #This is projection onto the imaging plane
+        #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
         projectedPositions[i] = np.array([positions[i,0],positions[i,2]])
 
-    #Now we know they are all along a straight line, so we can sort by our x axis!
+    #Now we know they are all along a straight line, so we can sort by our x axis! (Now each s/c is in order along the baseline)
     sortIndex = np.argsort(projectedPositions[:,0])
     sortedPositions = projectedPositions[sortIndex]
 
-    #Now loop through looking for max separation
-    mu = 0
+    #Now loop through recording seperations to take the average
+    mus = np.zeros(len(sortedPositions)-1)
     for i in range(len(sortedPositions)-1):
-        sep = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
-        if sep > mu:
-            mu = sep
+        mus[i] = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
 
-    return mu
+    return np.median(mus)
 
 def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     """
