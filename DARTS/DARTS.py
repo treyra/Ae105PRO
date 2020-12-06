@@ -702,8 +702,8 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         separations[i] = computeAverageSeperation(stateVector[i],lookAngle)
 
     #Now loop through and see how often we violate our constraints:
-    #   Resolution > vegH/5
-    #   ambiguity > vegH
+    #   Resolution > 1
+    #   ambiguity < 30
     #
     #First need some data
     #Resolution due to baseline:
@@ -771,7 +771,6 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
 
     
     print(resolutions)   
-    print(f"Time over targets: {len(np.where(vegH > 0)[0])/len(vegH)*100}%")
 
     print("Violations of Scientific Constraints")
     print(f"Resolution Violations (>1 m): {numViolateRes}")
