@@ -732,7 +732,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     
         if resolutions[i] > 1:
             numViolateRes +=1
-            score -= 50000 #Heavily penalize constraint violations 
+            #score -= 50000 #Heavily penalize constraint violations 
         if ambiguities[i] < 30:
             numViolateAmb +=1
             score -= 50000 #Heavily penalize constraint violations
@@ -774,11 +774,11 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     print(f"Time over targets: {len(np.where(vegH > 0)[0])/len(vegH)*100}%")
 
     print("Violations of Scientific Constraints")
-    print(f"Resolution Violations (>1/5 target height): {numViolateRes}")
+    print(f"Resolution Violations (>1 m): {numViolateRes}")
     print("Percentage of orbit below 1m resolution")
     print(len(np.where(resolutions <= 1)[0])/len(resolutions))
 
-    print(f"Ambiguity Violations (< target height): {numViolateAmb}")
+    print(f"Ambiguity Violations (< 30 m): {numViolateAmb}")
     print("Percentage of orbit above 30m ambiguity")
     print(len(np.where(ambiguities >= 1)[0])/len(ambiguities))
     return score
