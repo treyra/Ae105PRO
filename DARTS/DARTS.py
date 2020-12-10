@@ -13,6 +13,9 @@ from multiprocessing import Pool
 #For data export
 import netCDF4 as nc
 
+#Test import for comparing against legacy functions
+import legacyDARTSfunctions
+
 
 #Class constants (Earth parameters) can be overwritten locally or when calling the utility methods
 mu = 398600.432896939164493230  #gravitational constant
@@ -107,19 +110,24 @@ def demo():
 
     #Initial positions of DEPUTIES (Chief at 0,0,0)
 
-    #init_deputy = 25*np.array([[-2.06369808e+00, -7.89357624e+00, -1.30974571e+01],
-    #                            [ 1.82676515e-03,  9.59563707e+00, -7.03830178e+00],
-    #                            [-7.48477338e+00,  1.89994840e+00,  3.92002407e+00],
-    #                            [-1.87274650e+01,  8.51779952e+00,  1.07209308e+01],
-    #                            [ 6.94398501e+00,  1.79892775e+01,  2.37304517e+01]])  #Gives global res < 1 m, but fails res < target height/5 at all spots. Also has a s/c starting 187 km below the formation, could be problamatic
-
+    init_deputy = np.array([[-2.06369808e+00, -7.89357624e+00, -1.30974571e+01],
+                                [ 1.82676515e-03,  9.59563707e+00, -7.03830178e+00],
+                                [-7.48477338e+00,  1.89994840e+00,  3.92002407e+00],
+                                [-1.87274650e+01,  8.51779952e+00,  1.07209308e+01],
+                                [ 6.94398501e+00,  1.79892775e+01,  2.37304517e+01]])  #Gives global res < 1 m, but fails res < target height/5 at all spots. Also has a s/c starting 187 km below the formation, could be problamatic
+    init_deputy = np.array([[-0.11474911, -0.28277769, -0.41374357],
+                                  [ 0.11759513,  0.35926752, -0.29420415],
+                                  [-0.4380676,   0.13452622,  0.16840377],
+                                  [-0.80578882,  0.30974955,  0.41924403],
+                                  [ 0.18555127,  0.55242093,  0.95920626]])
+        #Time we integrate each orbit over
 
     #Best opt
-    init_deputy = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
-                              [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
-                              [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
-                              [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+    #init_deputy = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
+    #                          [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+    #                          [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
+    #                          [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+    #                          [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
 
     num_deputy = len(init_deputy)
 
@@ -424,11 +432,11 @@ def evalOrbit(state,orbParams):
         Cost of the orbit associated with this initial position
     """
 
-    print("Entered eval")
+    print("Started Computing Orbit Dynamics")
     #Get orbit dyanmics
     orbitState = computeOrbitDynamics(state,orbParams)
     
-    print("left eval")
+    print("Finished Computing Orbit Dynamics, starting scoring")
     return costFunction(orbParams["time"],orbitState,orbParams["lookAngle"])
 
 def computeOrbitDynamics(state,orbParams):
@@ -695,11 +703,14 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     separations = np.zeros(len(t))
 
     #Compute parameters at each step
+
     for i in range(len(t)):
         #Compute the baseline
-        baselines[i] = computeBaseline(stateVector[i],lookAngle)
+        baselines[i] = legacyDARTSfunctions.computeBaseline(stateVector[i],lookAngle)
         #Compute the median spacing
-        separations[i] = computeAverageSeperation(stateVector[i],lookAngle)
+        separations[i] = legacyDARTSfunctions.computeAverageSeperation(stateVector[i],lookAngle)
+        ##Compute the baseline & the median spacing
+        #(baselines[i],separations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
 
     #Now loop through and see how often we violate our constraints:
     #   Resolution > 1
@@ -779,7 +790,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
 
     print(f"Ambiguity Violations (< 30 m): {numViolateAmb}")
     print("Percentage of orbit above 30m ambiguity")
-    print(len(np.where(ambiguities >= 1)[0])/len(ambiguities))
+    print(len(np.where(ambiguities >= 30)[0])/len(ambiguities))
     return score
 
 
@@ -843,9 +854,10 @@ def computeR0(x,yhat,lookAngle):
 
 
 
-def computeBaseline(stateVector, lookAngle=0):
+def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
     """
-    Return the baseline for the formation at the current time of the orbit.
+    Return the baseline for the formation at the current time of the orbit
+    and the average cross track separation to estimate the ambiguity.
     
     Parameters
     ----------
@@ -867,73 +879,21 @@ def computeBaseline(stateVector, lookAngle=0):
     Ln : double
         Baseline for the formation, the spatial extent of the spacecraft
         projected normal to the look angle
-    """
-
-    #Pull out the positions of each space craft
-    positions = np.zeros((int(len(stateVector)/6),3))
-    for i in range(len(positions)):
-        positions[i] = stateVector[i*6:i*6+3]
-    #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
-    positions[0] = np.zeros(3)
-    
-    #Compute the look angle unit vector
-    lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
-
-
-    #Compute candidate baselines (since we don't know a priori which two s/c are farthest apart)
-    #TODO: Can this be more efficient? Currently O(n^2), but small numbers (There are n chose 2 combos)
-    #bestPair = np.zeros(2)
-    bestLn = 0
-    #Loop over combinations
-
-    for i in range(len(positions)-1):
-        for j in range(len(positions) - 1 - i):
-            candiadateBaseline = positions[i] - positions[j+i+1]
-            #Project onto the imaging plane (This is just removing the y component in this formulation)
-            #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
-            candiadateBaseline[1] = 0
-            #Project onto the look angle and subtract this off to get component perpendicular to the look angle
-            candiadateLn = np.linalg.norm(candiadateBaseline - np.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline))
-            if candiadateLn > bestLn:
-                bestLn = candiadateLn
-    return bestLn
-
-def computeAverageSeperation(stateVector, lookAngle=0):
-    """
-    Return the maximum cross track separation to estimate the ambiguity.
-    
-    Parameters
-    ----------
-    stateVector : array
-        State Vector of the swarm at the time to compute the baseline for.
-        State should be (x,y,z,vx,vy,vz) stacked for each space craft. 
-        x,y,z directions defined by the LVLH coordinate system, where
-        x is radially out from the Earth to the s/c, y is along track and
-        z is the orbit angular momentum.
-    lookAngle : double (default is 0)
-        Angle between the nadir and target directions in degrees. Alternatively 
-        the angle between the -x direction and the target direction. Note that
-        the target is always in the cross track plane, or the plane normal
-        to the orbit trajectory. Assumed a positive look angle is a positive
-        rotation about the along track vector y.
-
-    Returns
-    -------
     mu : double
         Average gap between any two space craft perpendicular to the look angle
         in the cross track plane
     """
-    
+
     #Pull out the positions of each space craft
     positions = np.zeros((int(len(stateVector)/6),3))
     for i in range(len(positions)):
         positions[i] = stateVector[i*6:i*6+3]
-    
     #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
     positions[0] = np.zeros(3)
-
+    
     #Compute the look angle unit vector
     lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
+    
     
     #Project onto the look angle and subtract this off to get component perpendicular to the look angle
     #Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
@@ -951,12 +911,17 @@ def computeAverageSeperation(stateVector, lookAngle=0):
     sortIndex = np.argsort(projectedPositions[:,0])
     sortedPositions = projectedPositions[sortIndex]
 
+    #Best Baseline is now just the distance between the two end points
+    Ln = np.linalg.norm(sortedPositions[0]-sortedPositions[-1])
+    
+    
+
     #Now loop through recording seperations to take the average
     mus = np.zeros(len(sortedPositions)-1)
     for i in range(len(sortedPositions)-1):
         mus[i] = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
 
-    return np.median(mus)
+    return (Ln,np.median(mus))
 
 def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     """

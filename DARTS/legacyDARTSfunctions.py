@@ -1,3 +1,123 @@
+import numpy as np
+
+
+#Old Baseline and sepearations computation that seperatly computed these quantities
+
+def computeBaseline(stateVector, lookAngle=0):
+    """
+    Return the baseline for the formation at the current time of the orbit.
+    
+    Parameters
+    ----------
+    stateVector : array
+        State Vector of the swarm at the time to compute the baseline for.
+        State should be (x,y,z,vx,vy,vz) stacked for each space craft. 
+        x,y,z directions defined by the LVLH coordinate system, where
+        x is radially out from the Earth to the s/c, y is along track (or 
+        tangential velocity) and z is the orbit angular momentum or cross track.
+    lookAngle : double (default is 0)
+        Angle between the nadir and target directions in degrees. Alternatively 
+        the angle between the -x direction and the target direction. Note that
+        the target is always in the cross track plane, or the plane normal
+        to the orbit trajectory. Assumed a positive look angle is a positive
+        rotation about the along track vector y.
+
+    Returns
+    -------
+    Ln : double
+        Baseline for the formation, the spatial extent of the spacecraft
+        projected normal to the look angle
+    """
+
+    #Pull out the positions of each space craft
+    positions = np.zeros((int(len(stateVector)/6),3))
+    for i in range(len(positions)):
+        positions[i] = stateVector[i*6:i*6+3]
+    #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
+    positions[0] = np.zeros(3)
+    
+    #Compute the look angle unit vector
+    lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
+
+
+    #Compute candidate baselines (since we don't know a priori which two s/c are farthest apart)
+    #TODO: Can this be more efficient? Currently O(n^2), but small numbers (There are n chose 2 combos)
+    #bestPair = np.zeros(2)
+    bestLn = 0
+    #Loop over combinations
+
+    for i in range(len(positions)-1):
+        for j in range(len(positions) - 1 - i):
+            candiadateBaseline = positions[i] - positions[j+i+1]
+            #Project onto the imaging plane (This is just removing the y component in this formulation)
+            #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
+            candiadateBaseline[1] = 0
+            #Project onto the look angle and subtract this off to get component perpendicular to the look angle
+            candiadateLn = np.linalg.norm(candiadateBaseline - np.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline))
+            if candiadateLn > bestLn:
+                bestLn = candiadateLn
+    return bestLn
+
+def computeAverageSeperation(stateVector, lookAngle=0):
+    """
+    Return the average cross track separation to estimate the ambiguity.
+    
+    Parameters
+    ----------
+    stateVector : array
+        State Vector of the swarm at the time to compute the baseline for.
+        State should be (x,y,z,vx,vy,vz) stacked for each space craft. 
+        x,y,z directions defined by the LVLH coordinate system, where
+        x is radially out from the Earth to the s/c, y is along track and
+        z is the orbit angular momentum.
+    lookAngle : double (default is 0)
+        Angle between the nadir and target directions in degrees. Alternatively 
+        the angle between the -x direction and the target direction. Note that
+        the target is always in the cross track plane, or the plane normal
+        to the orbit trajectory. Assumed a positive look angle is a positive
+        rotation about the along track vector y.
+
+    Returns
+    -------
+    mu : double
+        Average gap between any two space craft perpendicular to the look angle
+        in the cross track plane
+    """
+    
+    #Pull out the positions of each space craft
+    positions = np.zeros((int(len(stateVector)/6),3))
+    for i in range(len(positions)):
+        positions[i] = stateVector[i*6:i*6+3]
+    
+    #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
+    positions[0] = np.zeros(3)
+
+    #Compute the look angle unit vector
+    lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
+    
+    #Project onto the look angle and subtract this off to get component perpendicular to the look angle
+    #Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
+    #angle. Will then remove the along track dimension and get a 1D arrangement and sort them
+    projectedPositions = np.zeros((int(len(stateVector)/6),2))
+    #Only loop through deputies, as chief will be at [0,0,0] by definition
+    for i in range(len(positions)-1):
+        positions[i+1] =  positions[i+1] - np.dot(positions[i+1],lookVector)*positions[i+1]/np.linalg.norm(positions[i+1])
+        #Remove the along track (y) component
+        #This is projection onto the imaging plane
+        #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
+        projectedPositions[i] = np.array([positions[i,0],positions[i,2]])
+
+    #Now we know they are all along a straight line, so we can sort by our x axis! (Now each s/c is in order along the baseline)
+    sortIndex = np.argsort(projectedPositions[:,0])
+    sortedPositions = projectedPositions[sortIndex]
+
+    #Now loop through recording seperations to take the average
+    mus = np.zeros(len(sortedPositions)-1)
+    for i in range(len(sortedPositions)-1):
+        mus[i] = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
+
+    return np.median(mus)
+
 #Old science Merit computation that took into account the targets.
 
 def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,otherData=None):
