@@ -25,6 +25,9 @@ J2 = 0.001082627 #J2 Constant
 #TODO
 #Consider removing s/c at chief. <- can always add this assumption back in by fixing a s/c at 0,0,0
 
+#TODO
+#Pass in orbit parameters (make the options all in main)
+
 
 def main(mode="demo"):
     """
@@ -46,7 +49,7 @@ def main(mode="demo"):
         #Demo cost computation and visualization
         demo()
     elif mode == "optimize":
-        #Perform optimization WILL NOT WORK IF NOT RUN WITHOUT DEBUGGER ATTACHED
+        #Perform optimization RUN WITHOUT DEBUGGER ATTACHED OR IT WILL CRASH
         optimize()
     elif mode == "export":
         #Exporting
@@ -119,15 +122,15 @@ def demo():
                                   [ 0.11759513,  0.35926752, -0.29420415],
                                   [-0.4380676,   0.13452622,  0.16840377],
                                   [-0.80578882,  0.30974955,  0.41924403],
-                                  [ 0.18555127,  0.55242093,  0.95920626]])
+                                  [ 0.18555127,  0.55242093,  0.95920626]])*6.3
         #Time we integrate each orbit over
 
     #Best opt
-    #init_deputy = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
-    #                          [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
-    #                          [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
-    #                          [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-    #                          [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+    init_deputy = np.array([[-0.72093219, -1.80288973, -2.50229856],
+                              [ 0.73933178,  2.2697009 , -3.74430905],
+                              [-2.76315527,  0.83237523,  0.92600999],
+                              [-5.07369849,  1.92835114,  7.19183203],
+                              [ 1.16836679,  3.48500959,  6.79726157]])
 
     num_deputy = len(init_deputy)
 
@@ -189,21 +192,40 @@ def optimize():
     """
 
     
-    bestInit = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
-                              [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
-                              [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
-                              [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
-    secondBestInit = np.array([[ 3.37282993e-05, -1.99802409e+00, -2.01503656e+02],
-                         [ 3.54516369e-04,  9.93136414e-01, -1.01386407e+02],
-                         [ 4.48756400e-04,  1.00237461e+00,  9.94192366e+01],
-                         [ 3.98259557e-03,  2.00783511e+00,  2.00658956e+02],
-                         [-2.05875121e-03,  2.99748128e+00,  3.00494827e+02]])
-    thirdBestInit = np.array([[ 4.43109226e-04, -1.99043097e+00, -2.01873740e+02],
-                               [-9.60163002e-04,  9.85487053e-01, -9.88573185e+01],
-                               [ 3.31344996e-04,  1.00791516e+00,  1.00617566e+02],
-                               [-7.32023825e-05,  2.00842600e+00,  1.98757844e+02],
-                               [ 8.86752847e-04,  3.00459930e+00,  2.99882953e+02]])
+    #bestInit = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
+    #                          [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
+    #                          [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
+    #                          [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
+    #                          [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
+    #secondBestInit = np.array([[ 3.37282993e-05, -1.99802409e+00, -2.01503656e+02],
+    #                     [ 3.54516369e-04,  9.93136414e-01, -1.01386407e+02],
+    #                     [ 4.48756400e-04,  1.00237461e+00,  9.94192366e+01],
+    #                     [ 3.98259557e-03,  2.00783511e+00,  2.00658956e+02],
+    #                     [-2.05875121e-03,  2.99748128e+00,  3.00494827e+02]])
+    #thirdBestInit = np.array([[ 4.43109226e-04, -1.99043097e+00, -2.01873740e+02],
+    #                           [-9.60163002e-04,  9.85487053e-01, -9.88573185e+01],
+    #                           [ 3.31344996e-04,  1.00791516e+00,  1.00617566e+02],
+    #                           [-7.32023825e-05,  2.00842600e+00,  1.98757844e+02],
+    #                           [ 8.86752847e-04,  3.00459930e+00,  2.99882953e+02]])
+
+    bestInit = np.array([[-0.72093219, -1.80288973, -2.50229856],
+                              [ 0.73933178,  2.2697009 , -3.74430905],
+                              [-2.76315527,  0.83237523,  0.92600999],
+                              [-5.07369849,  1.92835114,  7.19183203],
+                              [ 1.16836679,  3.48500959,  6.79726157]])
+    
+    secondBestInit = np.array([[-0.72177109, -1.79998813, -2.2839021 ],
+                              [ 0.74084167,  2.26374041, -3.05275553],
+                              [-2.76291504,  0.82932748,  1.68020829],
+                              [-5.0733365 ,  1.93006394,  6.53541405],
+                              [ 1.16847337,  3.47723709,  7.23703715]])
+
+    thirdBestInit = np.array([[-0.72184274, -1.79858705, -2.43919107],
+                              [ 0.74070093,  2.26334727, -2.06676058],
+                              [-2.76214932,  0.82574802,  1.22148641],
+                              [-5.07317191,  1.92931908,  6.16591021],
+                              [ 1.16866556,  3.48151115,  6.47005005]])
+
     numDeputies = len(bestInit)
 
     #Time we integrate each orbit over
@@ -709,7 +731,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         baselines[i] = legacyDARTSfunctions.computeBaseline(stateVector[i],lookAngle)
         #Compute the median spacing
         separations[i] = legacyDARTSfunctions.computeAverageSeperation(stateVector[i],lookAngle)
-        ##Compute the baseline & the median spacing
+        #Compute the baseline & the median spacing
         #(baselines[i],separations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
 
     #Now loop through and see how often we violate our constraints:
@@ -787,6 +809,10 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     print(f"Resolution Violations (>1 m): {numViolateRes}")
     print("Percentage of orbit below 1m resolution")
     print(len(np.where(resolutions <= 1)[0])/len(resolutions))
+    print("Average Resolution:")
+    print(np.average(resolutions))
+    print("Median Resolution:")
+    print(np.median(resolutions))
 
     print(f"Ambiguity Violations (< 30 m): {numViolateAmb}")
     print("Percentage of orbit above 30m ambiguity")
@@ -883,17 +909,16 @@ def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
         Average gap between any two space craft perpendicular to the look angle
         in the cross track plane
     """
-
-    #Pull out the positions of each space craft
+    #Pull out the positions of each space craft (TODO: Skip first for minor speed boost? Sacrifices readability and ability to change code to not have chief...)
     positions = np.zeros((int(len(stateVector)/6),3))
     for i in range(len(positions)):
         positions[i] = stateVector[i*6:i*6+3]
     #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
     positions[0] = np.zeros(3)
+
     
     #Compute the look angle unit vector
     lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
-    
     
     #Project onto the look angle and subtract this off to get component perpendicular to the look angle
     #Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
@@ -910,6 +935,28 @@ def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
     #Now we know they are all along a straight line, so we can sort by our x axis! (Now each s/c is in order along the baseline)
     sortIndex = np.argsort(projectedPositions[:,0])
     sortedPositions = projectedPositions[sortIndex]
+
+
+    ##Compute the look angle unit vector (2D without any along track component. If this wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated)
+    #lookVector = np.array([-np.cos(np.radians(lookAngle)),np.sin(np.radians(lookAngle))])
+    #
+    #
+    ##Project onto the look angle and subtract this off to get component perpendicular to the look angle
+    ##Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
+    ##angle. Will then remove the along track dimension and get a 1D arrangement and sort them
+    #projectedPositions = np.zeros((int(len(stateVector)/6),2))
+    ##Only loop through deputies, as chief will be at [0,0,0] by definition
+    #for i in range(len(positions)-1):
+    #    #Remove the along track (y) component
+    #    #This is projection onto the imaging plane
+    #    #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
+    #    projectedPositions[i+1] = np.array([positions[i+1,0],positions[i+1,2]])
+    #    #Project onto look vector
+    #    projectedPositions[i+1] =  projectedPositions[i+1] - np.dot(projectedPositions[i+1],lookVector)*projectedPositions[i+1]/np.linalg.norm(projectedPositions[i+1])
+    #
+    ##Now we know they are all along a straight line, so we can sort by our x axis! (Now each s/c is in order along the baseline)
+    #sortIndex = np.argsort(projectedPositions[:,0])
+    #sortedPositions = projectedPositions[sortIndex]
 
     #Best Baseline is now just the distance between the two end points
     Ln = np.linalg.norm(sortedPositions[0]-sortedPositions[-1])

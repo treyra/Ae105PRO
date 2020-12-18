@@ -1,4 +1,103 @@
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+from scipy.spatial.transform import Rotation
+import pro_lib
 import numpy as np
+
+#Class constants (Earth parameters) can be overwritten locally or when calling the utility methods
+mu = 398600.432896939164493230  #gravitational constant
+r_e = 6378.136  # Earth Radius 
+J2 = 0.001082627 #J2 Constant
+
+#Currently the same as up to date DARTS, but used by coverage analysis in quick hack for visualization
+def costFunction(t,stateVector,lookAngle,visualize=False,otherData=None):
+    """
+    Return a cost value for the given orbit trajectory. This is the
+    cost to set up the orbit minus the science merit of the orbit.
+    The science merit is a per day score of the observational value
+    for the formation. For best results, give a representative length
+    of time (ie, time to repeat for a periodic orbit), and the score will
+    be normalized per day using the last time in t.
+
+    Parameters
+    ----------
+    t : array
+        Time at which each state is provided, in seconds from the start of
+        the computation
+    stateVector : array, shape (len(t), len(state))
+        State throughout the orbit at each time step. State should be 
+        (x,y,z,vx,vy,vz) stacked for each space craft in LVLH frame.
+        First s/c is the chief and should be instead the Xu Wang Parameters,
+        (r,vx,h,Omega,inc,theta)
+    lookAngle : double
+        Angle at which the formation is looking towards its target, defined 
+        as a right-handed rotation around the along track (+y) direction. 
+        0 is the nadir (-x) direction
+    visualize : Boolean (default=False)
+        When true, a 3D rendering of the orbit is generated
+
+    Returns
+    -------
+    J : double
+        Numerical cost of the orbit, as setup cost minus science merit. 
+        A lower cost means a more efficient/desirable orbit.
+    
+    """
+
+    #Cost function we are trying to evaluate
+    #J = e^(deltaV to initialize) - Sum[(targetHeight[i])/(5*resolution[i])]/numDays
+    #Subject to constraints: (enforced by large cost penalty)
+    #   resolution[i] < targetHeight[i]/5
+    #   ambiguity[i] > targetHeight[i]
+
+    #Compute the cost to set up the orbit, and maintain it
+    orbitCost = computeOrbitCost(t,stateVector)
+    print("set up cost:")
+    print(orbitCost)
+
+    #Compute the science merit that offsets the cost
+    scienceMerit = computeScienceMerit(t,stateVector,lookAngle,visualize,otherData)
+
+    return (orbitCost - scienceMerit)
+
+def computeOrbitCost(t,stateVector):
+    """
+    Return a cost for the formation based on the initial delta-V
+    needed to assume the formation. This is assumed to be the initial
+    relative velocity of each deputy, assuming the initial drift to the
+    starting positions is negligible 
+    
+    Parameters
+    ----------
+    t : array
+        Time at which each state is provided (unused, left for future costs
+        that use t)
+    stateVector : array, shape (len(t), len(state))
+        State throughout the orbit at each time step. State should be 
+        (x,y,z,vx,vy,vz) stacked for each deputy in LVLH. First 6 elements
+        are assumed to be the chief orbit in Xu Wang Parameters and are
+        ignored
+    Returns
+    -------
+    J : double
+        Numerical cost of the orbit to setup. A lower cost means a more 
+        efficient/desirable orbit.
+    
+    """
+    
+    #Compute the number of space craft in the formation
+    numSC = int(len(stateVector[0])/6)
+
+    #Compute MAX delta-V to initialize orbit (as we want to know most expensive s/c to initialize)
+    deltaV = 0
+    for i in range(numSC - 1):
+        initialV = stateVector[0,3+6*(i+1):6+6*(i+1)] * 1000 #Want in m/s
+        print(initialV)
+        deltaV = np.maximum(deltaV,np.linalg.norm(initialV))
+        print(deltaV)
+
+    #Exponentiate to estimate mass cost. Assume cold gas thrusters with ~150 ISP
+    return np.exp(deltaV/150)
 
 
 #Old Baseline and sepearations computation that seperatly computed these quantities
