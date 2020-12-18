@@ -241,7 +241,7 @@ def optimize():
                 "Om":0, #orbit right ascension of ascending node (deg)
                 "om":0, #orbit argument of periapsis (deg)
                 "f":0, #orbit true anomaly (deg)
-                "num_deputy":5, 
+                "num_deputy":numDeputies, 
                 "lookAngle":30, #(deg)
                 "mu":mu,  #gravitational parameter of Earth
                 "r_e":r_e,  # Earth Radius 
