@@ -29,7 +29,7 @@ J2 = 0.001082627 #J2 Constant
 #Pass in orbit parameters (make the options all in main)
 
 
-def main(mode="demo"):
+def main(mode="optimize"):
     """
     Main method of the orbit analysis tool. Call with the given mode to specifiy the type of function performed
 
@@ -208,23 +208,23 @@ def optimize():
     #                           [-7.32023825e-05,  2.00842600e+00,  1.98757844e+02],
     #                           [ 8.86752847e-04,  3.00459930e+00,  2.99882953e+02]])
 
-    bestInit = np.array([[-0.72093219, -1.80288973, -2.50229856],
-                              [ 0.73933178,  2.2697009 , -3.74430905],
-                              [-2.76315527,  0.83237523,  0.92600999],
-                              [-5.07369849,  1.92835114,  7.19183203],
-                              [ 1.16836679,  3.48500959,  6.79726157]])
+    secondBestInit = np.array([[0,0.1,3],
+                              [0,0.05,2],
+                              [0,0.025,1],
+                              [0,-0.025,-1],
+                              [0,-.05,-2]])
     
-    secondBestInit = np.array([[-0.72177109, -1.79998813, -2.2839021 ],
-                              [ 0.74084167,  2.26374041, -3.05275553],
-                              [-2.76291504,  0.82932748,  1.68020829],
-                              [-5.0733365 ,  1.93006394,  6.53541405],
-                              [ 1.16847337,  3.47723709,  7.23703715]])
+    thirdBestInit = np.array([[0,0.1,3],
+                              [0,0.05,2],
+                              [0,0.025,1],
+                              [0,-0.025,-1],
+                              [0,-.05,-2]])
 
-    thirdBestInit = np.array([[-0.72184274, -1.79858705, -2.43919107],
-                              [ 0.74070093,  2.26334727, -2.06676058],
-                              [-2.76214932,  0.82574802,  1.22148641],
-                              [-5.07317191,  1.92931908,  6.16591021],
-                              [ 1.16866556,  3.48151115,  6.47005005]])
+    bestInit = np.array([[-1.14576360e-03,  7.91687724e-02,  4.12666745e+00],
+                              [ 5.80537095e-04,  5.97267043e-02,  1.31516844e+00],
+                              [-9.98488998e-04,  3.63689985e-02,  1.56268543e+00],
+                              [-4.37875211e-04, -2.50680052e-02, -1.51861866e+00],
+                              [ 3.14449863e-04, -6.85345575e-02, -1.17835911e+00]])
 
     numDeputies = len(bestInit)
 
@@ -792,12 +792,12 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         plt.figure()
         plt.plot(resolutions)
         plt.title("Resolution over the orbit")
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (min)")
         plt.ylabel("Resolution (m)")
         plt.figure()
         plt.plot(ambiguities)
         plt.title("Nearest ambiguity over the orbit")
-        plt.xlabel("Time (s)")
+        plt.xlabel("Time (min)")
         plt.ylabel("Nearest Ambiguity (m)")
         plt.show()
 
