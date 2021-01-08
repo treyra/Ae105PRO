@@ -29,7 +29,7 @@ J2 = 0.001082627 #J2 Constant
 #Pass in orbit parameters (make the options all in main)
 
 
-def main(mode="optimize"):
+def main(mode="Noptimize"):
     """
     Main method of the orbit analysis tool. Call with the given mode to specifiy the type of function performed
 
@@ -51,15 +51,17 @@ def main(mode="optimize"):
     elif mode == "optimize":
         #Perform optimization RUN WITHOUT DEBUGGER ATTACHED OR IT WILL CRASH
         optimize()
+    elif mode == "Noptimize":
+        optimizeNCycles()
     elif mode == "export":
         #Exporting
 
         #Deputy intial positions, LVLH, x,y,z for each deputy. 
-        bestInit = np.array([[-0.11474911, -0.28277769, -0.41374357],
-                                  [ 0.11759513,  0.35926752, -0.29420415],
-                                  [-0.4380676,   0.13452622,  0.16840377],
-                                  [-0.80578882,  0.30974955,  0.41924403],
-                                  [ 0.18555127,  0.55242093,  0.95920626]])
+        bestInit = np.array([[-0.72093219, -1.80288973, -2.50229856],
+                              [ 0.73933178,  2.2697009 , -3.74430905],
+                              [-2.76315527,  0.83237523,  0.92600999],
+                              [-5.07369849,  1.92835114,  7.19183203],
+                              [ 1.16836679,  3.48500959,  6.79726157]])
         #Time we integrate each orbit over
         time = np.arange(0,12*24*3600,1)
          
@@ -131,6 +133,20 @@ def demo():
                               [-2.76315527,  0.83237523,  0.92600999],
                               [-5.07369849,  1.92835114,  7.19183203],
                               [ 1.16836679,  3.48500959,  6.79726157]])
+    #Reconverence testing
+    init_deputy = np.array([[-5.53342193e-03,  1.06385407e-01,  1.97533346e+01],
+                               [ 2.66707287e-03,  7.60196368e-02, -2.03309849e+00],
+                               [-1.27304989e-03,  9.08156780e-02,  3.86870949e-01],
+                               [ 9.29500326e-04, -3.65577483e-03, -2.18893663e+00],
+                               [ 2.03366374e-03, -6.91828601e-02, -8.47429796e+00]])
+
+     #Reconverence testing
+    init_deputy = np.array([[1, 1,  1],
+                         [ 2,  2, 2],
+                         [3,  3, 3],
+                         [ -1, -1, -1],
+                         [-2, -2, -2]])
+
 
     num_deputy = len(init_deputy)
 
@@ -179,7 +195,64 @@ def demo():
 
     #mlab.show()
 
-def optimize():
+def optimizeNCycles():
+    """
+    Function to automate running several optimize cycles
+    """
+    
+    bestInit = np.array([[  0.98239911,   1.06640674,   2.12440775],
+                         [  1.99066795,   2.12467507,  -1.8039068 ],
+                         [  2.99699502,   3.12696843, 169.96549924],
+                         [ -1.00694219,  -1.04592833,  -1.27814735],
+                         [ -1.99577417,  -2.00924469, -86.40924547]])
+   
+    secondBestInit = np.array([[  0.98335839,   1.06854472,   2.0482854 ],
+                               [  1.99181113,   2.12884413,  -1.70663073],
+                               [  2.99823691,   3.13087262, 166.54469236],
+                               [ -1.0063434 ,  -1.04274593,  -0.25965436],
+                               [ -1.99472544,  -2.00653414, -84.73943268]])
+    
+    thirdBestInit = np.array([[  0.98470692,   1.05640366,   2.47786845],
+                              [  1.99173558,   2.13705889,  -0.46035579],
+                              [  2.99528368,   3.15107566, 162.40297192],
+                              [ -1.00624265,  -1.04964831,  -0.86088615],
+                              [ -1.99445813,  -2.00197671, -83.93255006]])
+                                 
+ 
+    for i in range(10):
+        temp = optimize(bestInit,secondBestInit,thirdBestInit,visualize=False)
+        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        print(temp)
+        thirdBestInit = secondBestInit
+        secondBestInit = bestInit
+        bestInit = temp
+    
+        print(bestInit)
+        print(secondBestInit)
+        print(thirdBestInit)
+
+
+
+    
+
+
+def optimize(
+    bestInit = np.array([[-5.56719468e-03,  1.09388524e-01,  1.91032317e+01],
+                              [ 2.22255702e-03,  7.74576605e-02, -1.64232347e+00],
+                              [-1.64100855e-03,  8.49974324e-02,  4.92724766e-01],
+                              [-7.09267777e-05, -7.00446055e-03, -1.92901298e+00],
+                              [ 1.59695464e-03, -6.73444963e-02, -8.11735327e+00]]),
+    secondBestInit = np.array([[-4.75503420e-03,  9.93702317e-02,  1.83707324e+01],
+                              [ 2.46261441e-03,  7.32694464e-02, -1.11812939e+00],
+                              [-1.85840923e-03,  7.68111093e-02,  4.90542520e-01],
+                              [-3.19459047e-04, -2.86499158e-03, -1.96000142e+00],
+                              [-1.62894804e-04, -6.15886934e-02, -7.81871142e+00]]),
+    thirdBestInit = np.array([[-6.71534008e-03,  9.51117446e-02,  1.75543717e+01],
+                              [ 1.50789608e-03,  8.12257766e-02, -1.04610024e+00],
+                              [-2.80626022e-03,  6.93551488e-02,  1.72469958e+00],
+                              [-1.95733956e-04, -2.05029166e-03, -1.68300170e+00],
+                              [-8.46676232e-04, -6.63176206e-02, -7.42407684e+00]]),   
+    visualize=True):
     """
     Function that searches for an optimal formation for the weighting
     of science objectives versus set up costs. Utilizes a genetic algorithm
@@ -208,23 +281,7 @@ def optimize():
     #                           [-7.32023825e-05,  2.00842600e+00,  1.98757844e+02],
     #                           [ 8.86752847e-04,  3.00459930e+00,  2.99882953e+02]])
 
-    secondBestInit = np.array([[0,0.1,3],
-                              [0,0.05,2],
-                              [0,0.025,1],
-                              [0,-0.025,-1],
-                              [0,-.05,-2]])
     
-    thirdBestInit = np.array([[0,0.1,3],
-                              [0,0.05,2],
-                              [0,0.025,1],
-                              [0,-0.025,-1],
-                              [0,-.05,-2]])
-
-    bestInit = np.array([[-1.14576360e-03,  7.91687724e-02,  4.12666745e+00],
-                              [ 5.80537095e-04,  5.97267043e-02,  1.31516844e+00],
-                              [-9.98488998e-04,  3.63689985e-02,  1.56268543e+00],
-                              [-4.37875211e-04, -2.50680052e-02, -1.51861866e+00],
-                              [ 3.14449863e-04, -6.85345575e-02, -1.17835911e+00]])
 
     numDeputies = len(bestInit)
 
@@ -283,13 +340,13 @@ def optimize():
         indexes = costs.argsort()[:3]
 
         #reassign
-        bestInt = statesToEval[indexes[0]]
+        bestInit = statesToEval[indexes[0]]
         secondBestInit = statesToEval[indexes[1]]
         thirdBestInit = statesToEval[indexes[2]]
 
     #Now print out the optimal formation and visualize!
     print("Best Initial Conditions:")
-    print(bestInt)
+    print(bestInit)
 
     #No longer display 3d visualizations
     ##Heavy module, import locally
@@ -298,7 +355,7 @@ def optimize():
 
     #Compute orbit and cost again for display
     orbitState = computeOrbitDynamics(bestInit,orbParams) 
-    cost =  costFunction(orbParams["time"],orbitState,30,visualize=True)
+    cost =  costFunction(orbParams["time"],orbitState,30,visualize=visualize)
 
     print("Cost:")
     print(cost)
@@ -307,25 +364,28 @@ def optimize():
     #Blocks. Could multi thread to show the plot at the same time, or view one at a time as now.
     #mlab.show()
 
-    
-    #Plot the computed dynamics
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
-    ax.set_xlabel("x, radial out from Earth (km)")
-    ax.set_ylabel("y, along track (km)")
-    ax.set_zlabel("z, cross track (km)")
-    ax.set_ylim(-100,100)
-    ax.set_zlim(-100,100)
-    ax.set_xlim(-100,100)
-    ax.azim = -100
-    ax.elev = 43
-    for i in range(orbParams["num_deputy"]):
-    
-        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
-    
-    ax.plot([0],[0],[0],"ko")
-    plt.show()
+    if visualize:
+
+        #Plot the computed dynamics
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
+        ax.set_xlabel("x, radial out from Earth (km)")
+        ax.set_ylabel("y, along track (km)")
+        ax.set_zlabel("z, cross track (km)")
+        ax.set_ylim(-100,100)
+        ax.set_zlim(-100,100)
+        ax.set_xlim(-100,100)
+        ax.azim = -100
+        ax.elev = 43
+        for i in range(orbParams["num_deputy"]):
+        
+            ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
+        
+        ax.plot([0],[0],[0],"ko")
+        plt.show()
+    print(bestInit)
+    return bestInit
 
 def exportOrbit(initDeputy,orbParams):
     """

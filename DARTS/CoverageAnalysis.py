@@ -14,7 +14,7 @@ r_e = 6378.136  # Earth Radius
 J2 = 0.001082627 #J2 Constant
 
 def main():
-    visualizeOrbit(NoRev = 430,altitude = 748.945,days = 30,ecc = 0,inc = 81.6107,Om = 0,om = 0,f = 0) 
+    visualizeOrbit(NoRev = 433,altitude = 741.846, days = 30,ecc = 0,inc = 98.3597,Om = 0,om = 0,f = 0) 
 
 
 
