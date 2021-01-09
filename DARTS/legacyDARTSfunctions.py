@@ -215,7 +215,7 @@ def computeAverageSeperation(stateVector, lookAngle=0):
     for i in range(len(sortedPositions)-1):
         mus[i] = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
 
-    return np.median(mus)
+    return np.mean(mus)
 
 #Old science Merit computation that took into account the targets.
 
