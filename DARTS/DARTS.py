@@ -835,6 +835,13 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
             numViolateAmb +=1
             score -= 50000 #Heavily penalize constraint violations
         score += (1/resolutions[i])
+        if resolutions[i] > 200:
+            numViolateRes +=1
+            score -= 50000 #Heavily penalize constraint violations 
+        if ambiguities[i] < 500:
+            numViolateAmb +=1
+            score -= 50000 #Heavily penalize constraint violations
+        score += (1/resolutions[i]) 
     
     #Compute additional data as requested to pass out (such as min resolution, max baseline, etc.)
     if otherData is not None:
