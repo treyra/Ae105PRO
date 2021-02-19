@@ -29,7 +29,7 @@ J2 = 0.001082627 #J2 Constant
 #Pass in orbit parameters (make the options all in main)
 
 
-def main(mode="Noptimize"):
+def main(mode="demo"):
     """
     Main method of the orbit analysis tool. Call with the given mode to specifiy the type of function performed
 
@@ -146,6 +146,14 @@ def demo():
                          [3,  3, 3],
                          [ -1, -1, -1],
                          [-2, -2, -2]])
+
+
+    init_deputy = np.array([[-2.57990120e+01, -9.86741147e+01, -1.74321074e+02],
+                           [ 2.51868506e-02,  1.19946956e+02, -8.94395163e+01],
+                           [-9.35595235e+01,  2.37265067e+01,  4.70378047e+01],
+                           [-2.34091153e+02,  1.06499738e+02,  1.36674928e+02],
+                           [ 8.68010755e+01,  2.24848795e+02,  2.99131476e+02]])
+
 
     #init_deputy = np.array([[  0.98239911,   1.06640674,   2.12440775],
     #                      [  1.99066795,   2.12467507,  -1.8039068 ],
@@ -788,6 +796,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
     separations = np.zeros(len(t))
+    critBaselines = np.zeros(len(t))
 
     #Compute parameters at each step
 
@@ -818,16 +827,36 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     
     
     lam = .24 #Units in meters
+    Bandwidth = 40 #Units in Mhz
+    #Range Resolution (c ~= 300M m/s)
+    dr = 300/(2*Bandwidth)
     resolutions = np.zeros(len(t))
     ambiguities = np.zeros(len(t))
     numViolateRes = 0
     numViolateAmb = 0
+    numViolateCritBase = 0
+    numViolatePairWiseCritBase = 0
     #Currently giving score as # of times better than constraint (1/5 of veg height)
     score = 0
     for i in range(len(t)):
         resolutions[i] = lam * r0s[i]*1000 / (2 * baselines[i]*1000) #Convert to meters
         ambiguities[i] = lam * r0s[i]*1000 / (2 * separations[i]*1000)
-    
+        #Compute crit Baseline
+        #NOTE: LOOK ANGLE SHOULD BE THE INCIDENCE ANGLE
+        critBaselines[i] = lam * r0s[i] * np.tan(np.radians(lookAngle))/(2 * dr) #In km
+        #Crit Baseline penalties
+        critBaselinePenalty = True
+        if critBaselinePenalty:
+            if critBaselines[i] < baselines[i]:
+                score -= 50000 #Heavily penalize constraint violations
+                numViolateCritBase += 1
+        pairWiseCritBaselinePenalty = True
+        if pairWiseCritBaselinePenalty:
+            if critBaselines[i] < separations[i]:
+                score -= 50000 #Heavily penalize constraint violations
+                numViolatePairWiseCritBase += 1
+
+
         if resolutions[i] > 1:
             numViolateRes +=1
             #score -= 50000 #Heavily penalize constraint violations 
@@ -859,7 +888,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
             #Global max separation (worst case)
             otherData["maxSeparation"] = np.max(separations)
             
-    #Plot resolution and ambiguity over orbit
+    #Plot resolution and ambiguity and crit baseline over orbit
     if visualizeTrajectory:
         plt.figure()
         plt.plot(resolutions)
@@ -871,8 +900,23 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         plt.title("Nearest ambiguity over the orbit")
         plt.xlabel("Time (min)")
         plt.ylabel("Nearest Ambiguity (m)")
+        
+        plt.figure()
+        plt.plot(baselines)
+        plt.plot(critBaselines)
+        plt.title("Critical Baseline vs. Formation Baseline")
+        plt.xlabel("Time (min)")
+        plt.ylabel("Baselines (km)")
+        plt.legend(("Formation Baseline","Critical Baseline"))
+        
+        plt.figure()
+        plt.plot(separations)
+        plt.plot(critBaselines)
+        plt.title("Critical Baseline vs. Pairwise Baseline")
+        plt.xlabel("Time (min)")
+        plt.ylabel("Baselines (km)")
+        plt.legend(("Pairwise Max Baseline","Critical Baseline"))
         plt.show()
-
 
     
     print(resolutions)   
@@ -889,6 +933,15 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     print(f"Ambiguity Violations (< 30 m): {numViolateAmb}")
     print("Percentage of orbit above 30m ambiguity")
     print(len(np.where(ambiguities >= 30)[0])/len(ambiguities))
+
+    print(f"Critical Baseline Violations (< 30 m): {numViolateCritBase}")
+    print("Percentage of orbit below Critical Baseline")
+    print(len(np.where(critBaselines >= baselines)[0])/len(ambiguities))
+
+    print(f"Pairwise Critical Baseline Violations (< 30 m): {numViolatePairWiseCritBase}")
+    print("Percentage of orbit below Pairwise Critical Baseline")
+    print(len(np.where(critBaselines >= separations)[0])/len(ambiguities))
+
     return score
 
 
