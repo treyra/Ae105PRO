@@ -13,6 +13,9 @@ from multiprocessing import Pool
 #For data export
 import netCDF4 as nc
 
+#Test import for comparing against legacy functions
+import legacyDARTSfunctions
+
 
 #Class constants (Earth parameters) can be overwritten locally or when calling the utility methods
 mu = 398600.432896939164493230  #gravitational constant
@@ -21,6 +24,9 @@ J2 = 0.001082627 #J2 Constant
 
 #TODO
 #Consider removing s/c at chief. <- can always add this assumption back in by fixing a s/c at 0,0,0
+
+#TODO
+#Pass in orbit parameters (make the options all in main)
 
 
 def main(mode="demo"):
@@ -43,8 +49,10 @@ def main(mode="demo"):
         #Demo cost computation and visualization
         demo()
     elif mode == "optimize":
-        #Perform optimization WILL NOT WORK IF NOT RUN WITHOUT DEBUGGER ATTACHED
+        #Perform optimization RUN WITHOUT DEBUGGER ATTACHED OR IT WILL CRASH
         optimize()
+    elif mode == "Noptimize":
+        optimizeNCycles()
     elif mode == "export":
         #Exporting
 
@@ -105,32 +113,19 @@ def demo():
     om = 0
     f = 0
 
-    #Initial positions of DEPUTIES (Chief at 0,0,0)
-
-    #init_deputy = 25*np.array([[-2.06369808e+00, -7.89357624e+00, -1.30974571e+01],
-    #                            [ 1.82676515e-03,  9.59563707e+00, -7.03830178e+00],
-    #                            [-7.48477338e+00,  1.89994840e+00,  3.92002407e+00],
-    #                            [-1.87274650e+01,  8.51779952e+00,  1.07209308e+01],
-    #                            [ 6.94398501e+00,  1.79892775e+01,  2.37304517e+01]])  #Gives global res < 1 m, but fails res < target height/5 at all spots. Also has a s/c starting 187 km below the formation, could be problamatic
-
-
     #Best opt
-    init_deputy = np.array([[-4.83257070e-04, -1.99473235e+00, -2.03232731e+02],
-                              [-2.15320723e-03,  1.00301564e+00, -9.79559814e+01],
-                              [-4.86408799e-05,  9.86145073e-01,  1.01980968e+02],
-                              [-5.38965295e-04,  2.00863582e+00,  1.99040789e+02],
-                              [ 3.91370703e-04,  3.01924746e+00,  3.02111458e+02]])
-
     init_deputy = np.array([[-0.72093219, -1.80288973, -2.50229856],
                               [ 0.73933178,  2.2697009 , -3.74430905],
                               [-2.76315527,  0.83237523,  0.92600999],
                               [-5.07369849,  1.92835114,  7.19183203],
                               [ 1.16836679,  3.48500959,  6.79726157]])
-
-
-
-
-    ##3 dep 
+    #Paper 6 s/c
+    init_deputy = np.array([[-0.55609512, -1.39066919, -1.93016214],
+                            [ 0.57028775,  1.75074662, -2.88819396],
+                            [-2.13137544,  0.64205734,  0.71428304],
+                            [-3.91362602,  1.48744456,  5.54746031],
+                            [ 0.90122633,  2.68818185,  5.24310615]])
+    ##Paper 4 s/c 
     #init_deputy = np.array([[-0.7241775 , -1.78246053, -2.52490054],
     #                        [ 0.73819004,  2.25637408, -4.81125612],
     #                        [-2.76180931,  0.80043957,  4.70555318]])
@@ -182,7 +177,64 @@ def demo():
 
     #mlab.show()
 
-def optimize():
+def optimizeNCycles():
+    """
+    Function to automate running several optimize cycles
+    """
+    
+    bestInit = np.array([[1, 1,  1],
+                         [ 2,  2, 2],
+                         [3,  3, 3],
+                         [ -1, -1, -1],
+                         [-2, -2, -2]])
+    
+    secondBestInit = np.array([[1, 1,  1],
+                         [ 2,  2, 2],
+                         [3,  3, 3],
+                         [ -1, -1, -1],
+                         [-2, -2, -2]])
+    
+    thirdBestInit = np.array([[1, 1,  1],
+                         [ 2,  2, 2],
+                         [3,  3, 3],
+                         [ -1, -1, -1],
+                         [-2, -2, -2]])
+                                 
+ 
+    for i in range(10):
+        temp = optimize(bestInit,secondBestInit,thirdBestInit,visualize=False)
+        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        print(temp)
+        thirdBestInit = secondBestInit
+        secondBestInit = bestInit
+        bestInit = temp
+    
+        print(bestInit)
+        print(secondBestInit)
+        print(thirdBestInit)
+
+
+
+    
+
+
+def optimize(
+    bestInit = np.array([[-5.56719468e-03,  1.09388524e-01,  1.91032317e+01],
+                              [ 2.22255702e-03,  7.74576605e-02, -1.64232347e+00],
+                              [-1.64100855e-03,  8.49974324e-02,  4.92724766e-01],
+                              [-7.09267777e-05, -7.00446055e-03, -1.92901298e+00],
+                              [ 1.59695464e-03, -6.73444963e-02, -8.11735327e+00]]),
+    secondBestInit = np.array([[-4.75503420e-03,  9.93702317e-02,  1.83707324e+01],
+                              [ 2.46261441e-03,  7.32694464e-02, -1.11812939e+00],
+                              [-1.85840923e-03,  7.68111093e-02,  4.90542520e-01],
+                              [-3.19459047e-04, -2.86499158e-03, -1.96000142e+00],
+                              [-1.62894804e-04, -6.15886934e-02, -7.81871142e+00]]),
+    thirdBestInit = np.array([[-6.71534008e-03,  9.51117446e-02,  1.75543717e+01],
+                              [ 1.50789608e-03,  8.12257766e-02, -1.04610024e+00],
+                              [-2.80626022e-03,  6.93551488e-02,  1.72469958e+00],
+                              [-1.95733956e-04, -2.05029166e-03, -1.68300170e+00],
+                              [-8.46676232e-04, -6.63176206e-02, -7.42407684e+00]]),   
+    visualize=True):
     """
     Function that searches for an optimal formation for the weighting
     of science objectives versus set up costs. Utilizes a genetic algorithm
@@ -211,20 +263,12 @@ def optimize():
     #                           [-7.32023825e-05,  2.00842600e+00,  1.98757844e+02],
     #                           [ 8.86752847e-04,  3.00459930e+00,  2.99882953e+02]])
 
+    
 
-    thirdBestInit = np.array([[-0.72565755, -1.78460961, -1.63226814],
-                              [ 0.73872284,  2.22050678, -4.98445734],
-                              [-2.76384927,  0.77909424,  5.47369868]])
-    bestInit = np.array([[-0.72565909, -1.78318006, -1.2813081 ],
-                              [ 0.7389763 ,  2.23678677, -4.88788499],
-                              [-2.76345737,  0.78728529,  6.86317333]])
-    secondBestInit = np.array([[-0.72565755, -1.78460961, -1.63226814],
-                              [ 0.73872284,  2.22050678, -4.98445734],
-                              [-2.76384927,  0.77909424,  5.47369868]])
     numDeputies = len(bestInit)
 
     #Time we integrate each orbit over
-    time = np.arange(0,12*24*3600,60)
+    time = np.arange(0,12*3600,60)
      
     # orbital parameters, wrapped in a dictionary
 
@@ -278,13 +322,13 @@ def optimize():
         indexes = costs.argsort()[:3]
 
         #reassign
-        bestInt = statesToEval[indexes[0]]
+        bestInit = statesToEval[indexes[0]]
         secondBestInit = statesToEval[indexes[1]]
         thirdBestInit = statesToEval[indexes[2]]
 
     #Now print out the optimal formation and visualize!
     print("Best Initial Conditions:")
-    print(bestInt)
+    print(bestInit)
 
     #No longer display 3d visualizations
     ##Heavy module, import locally
@@ -293,7 +337,7 @@ def optimize():
 
     #Compute orbit and cost again for display
     orbitState = computeOrbitDynamics(bestInit,orbParams) 
-    cost =  costFunction(orbParams["time"],orbitState,30,visualize=True)
+    cost =  costFunction(orbParams["time"],orbitState,30,visualize=visualize)
 
     print("Cost:")
     print(cost)
@@ -302,25 +346,28 @@ def optimize():
     #Blocks. Could multi thread to show the plot at the same time, or view one at a time as now.
     #mlab.show()
 
-    
-    #Plot the computed dynamics
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
-    ax.set_xlabel("x, radial out from Earth (km)")
-    ax.set_ylabel("y, along track (km)")
-    ax.set_zlabel("z, cross track (km)")
-    ax.set_ylim(-100,100)
-    ax.set_zlim(-100,100)
-    ax.set_xlim(-100,100)
-    ax.azim = -100
-    ax.elev = 43
-    for i in range(orbParams["num_deputy"]):
-    
-        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
-    
-    ax.plot([0],[0],[0],"ko")
-    plt.show()
+    if visualize:
+
+        #Plot the computed dynamics
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
+        ax.set_xlabel("x, radial out from Earth (km)")
+        ax.set_ylabel("y, along track (km)")
+        ax.set_zlabel("z, cross track (km)")
+        ax.set_ylim(-100,100)
+        ax.set_zlim(-100,100)
+        ax.set_xlim(-100,100)
+        ax.azim = -100
+        ax.elev = 43
+        for i in range(orbParams["num_deputy"]):
+        
+            ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
+        
+        ax.plot([0],[0],[0],"ko")
+        plt.show()
+    print(bestInit)
+    return bestInit
 
 def exportOrbit(initDeputy,orbParams):
     """
@@ -527,11 +574,11 @@ def evalOrbit(state,orbParams):
         Cost of the orbit associated with this initial position
     """
 
-    print("Entered eval")
+    print("Started Computing Orbit Dynamics")
     #Get orbit dyanmics
     orbitState = computeOrbitDynamics(state,orbParams)
     
-    print("left eval")
+    print("Finished Computing Orbit Dynamics, starting scoring")
     return costFunction(orbParams["time"],orbitState,orbParams["lookAngle"])
 
 def computeOrbitDynamics(state,orbParams):
@@ -796,13 +843,17 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
     separations = np.zeros(len(t))
+    critBaselines = np.zeros(len(t))
 
     #Compute parameters at each step
+
     for i in range(len(t)):
         #Compute the baseline
-        baselines[i] = computeBaseline(stateVector[i],lookAngle)
+        baselines[i] = legacyDARTSfunctions.computeBaseline(stateVector[i],lookAngle)
         #Compute the median spacing
-        separations[i] = computeAverageSeperation(stateVector[i],lookAngle)
+        separations[i] = legacyDARTSfunctions.computeAverageSeperation(stateVector[i],lookAngle)
+        #Compute the baseline & the median spacing
+        #(baselines[i],separations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
 
     #Now loop through and see how often we violate our constraints:
     #   Resolution > 1
@@ -823,16 +874,36 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     
     
     lam = .24 #Units in meters
+    Bandwidth = 40 #Units in Mhz
+    #Range Resolution (c ~= 300M m/s)
+    dr = 300/(2*Bandwidth)
     resolutions = np.zeros(len(t))
     ambiguities = np.zeros(len(t))
     numViolateRes = 0
     numViolateAmb = 0
+    numViolateCritBase = 0
+    numViolatePairWiseCritBase = 0
     #Currently giving score as # of times better than constraint (1/5 of veg height)
     score = 0
     for i in range(len(t)):
         resolutions[i] = lam * r0s[i]*1000 / (2 * baselines[i]*1000) #Convert to meters
         ambiguities[i] = lam * r0s[i]*1000 / (2 * separations[i]*1000)
-    
+        #Compute crit Baseline
+        #NOTE: LOOK ANGLE SHOULD BE THE INCIDENCE ANGLE
+        critBaselines[i] = lam * r0s[i] * np.tan(np.radians(lookAngle))/(2 * dr) #In km
+        #Crit Baseline penalties
+        critBaselinePenalty = True
+        if critBaselinePenalty:
+            if critBaselines[i] < baselines[i]:
+                score -= 50000 #Heavily penalize constraint violations
+                numViolateCritBase += 1
+        pairWiseCritBaselinePenalty = True
+        if pairWiseCritBaselinePenalty:
+            if critBaselines[i] < separations[i]:
+                score -= 50000 #Heavily penalize constraint violations
+                numViolatePairWiseCritBase += 1
+
+
         if resolutions[i] > 1:
             numViolateRes +=1
             #score -= 50000 #Heavily penalize constraint violations 
@@ -840,6 +911,13 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
             numViolateAmb +=1
             score -= 50000 #Heavily penalize constraint violations
         score += (1/resolutions[i])
+        if resolutions[i] > 200:
+            numViolateRes +=1
+            score -= 50000 #Heavily penalize constraint violations 
+        if ambiguities[i] < 500:
+            numViolateAmb +=1
+            score -= 50000 #Heavily penalize constraint violations
+        score += (1/resolutions[i]) 
     
     #Compute additional data as requested to pass out (such as min resolution, max baseline, etc.)
     if otherData is not None:
@@ -857,21 +935,35 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
             #Global max separation (worst case)
             otherData["maxSeparation"] = np.max(separations)
             
-    #Plot resolution and ambiguity over orbit
+    #Plot resolution and ambiguity and crit baseline over orbit
     if visualizeTrajectory:
         plt.figure()
         plt.plot(resolutions)
-        #plt.title("Resolution over the orbit")
+        plt.title("Resolution over the orbit")
         plt.xlabel("Time (min)")
         plt.ylabel("Resolution (m)")
         plt.figure()
         plt.plot(ambiguities)
-        plt.plot(range(len(ambiguities)),30*np.ones(len(ambiguities)))
-        #plt.title("Nearest ambiguity over the orbit")
+        plt.title("Nearest ambiguity over the orbit")
         plt.xlabel("Time (min)")
         plt.ylabel("Nearest Ambiguity (m)")
+        
+        plt.figure()
+        plt.plot(baselines)
+        plt.plot(critBaselines)
+        plt.title("Critical Baseline vs. Formation Baseline")
+        plt.xlabel("Time (min)")
+        plt.ylabel("Baselines (km)")
+        plt.legend(("Formation Baseline","Critical Baseline"))
+        
+        plt.figure()
+        plt.plot(separations)
+        plt.plot(critBaselines)
+        plt.title("Critical Baseline vs. Pairwise Baseline")
+        plt.xlabel("Time (min)")
+        plt.ylabel("Baselines (km)")
+        plt.legend(("Pairwise Max Baseline","Critical Baseline"))
         plt.show()
-
 
     
     print(resolutions)   
@@ -880,13 +972,23 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     print(f"Resolution Violations (>1 m): {numViolateRes}")
     print("Percentage of orbit below 1m resolution")
     print(len(np.where(resolutions <= 1)[0])/len(resolutions))
+    print("Average Resolution:")
+    print(np.average(resolutions))
+    print("Median Resolution:")
+    print(np.median(resolutions))
 
     print(f"Ambiguity Violations (< 30 m): {numViolateAmb}")
     print("Percentage of orbit above 30m ambiguity")
-    print(len(np.where(ambiguities >= 1)[0])/len(ambiguities))
-    print("Average Res")
-    print(np.mean(resolutions))
-    print(r0s)
+    print(len(np.where(ambiguities >= 30)[0])/len(ambiguities))
+
+    print(f"Critical Baseline Violations (< 30 m): {numViolateCritBase}")
+    print("Percentage of orbit below Critical Baseline")
+    print(len(np.where(critBaselines >= baselines)[0])/len(ambiguities))
+
+    print(f"Pairwise Critical Baseline Violations (< 30 m): {numViolatePairWiseCritBase}")
+    print("Percentage of orbit below Pairwise Critical Baseline")
+    print(len(np.where(critBaselines >= separations)[0])/len(ambiguities))
+
     return score
 
 
@@ -950,9 +1052,10 @@ def computeR0(x,yhat,lookAngle):
 
 
 
-def computeBaseline(stateVector, lookAngle=0):
+def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
     """
-    Return the baseline for the formation at the current time of the orbit.
+    Return the baseline for the formation at the current time of the orbit
+    and the average cross track separation to estimate the ambiguity.
     
     Parameters
     ----------
@@ -974,71 +1077,18 @@ def computeBaseline(stateVector, lookAngle=0):
     Ln : double
         Baseline for the formation, the spatial extent of the spacecraft
         projected normal to the look angle
-    """
-
-    #Pull out the positions of each space craft
-    positions = np.zeros((int(len(stateVector)/6),3))
-    for i in range(len(positions)):
-        positions[i] = stateVector[i*6:i*6+3]
-    #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
-    positions[0] = np.zeros(3)
-    
-    #Compute the look angle unit vector
-    lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
-
-
-    #Compute candidate baselines (since we don't know a priori which two s/c are farthest apart)
-    #TODO: Can this be more efficient? Currently O(n^2), but small numbers (There are n chose 2 combos)
-    #bestPair = np.zeros(2)
-    bestLn = 0
-    #Loop over combinations
-
-    for i in range(len(positions)-1):
-        for j in range(len(positions) - 1 - i):
-            candiadateBaseline = positions[i] - positions[j+i+1]
-            #Project onto the imaging plane (This is just removing the y component in this formulation)
-            #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
-            candiadateBaseline[1] = 0
-            #Project onto the look angle and subtract this off to get component perpendicular to the look angle
-            candiadateLn = np.linalg.norm(candiadateBaseline - np.dot(candiadateBaseline,lookVector)*candiadateBaseline/np.linalg.norm(candiadateBaseline))
-            if candiadateLn > bestLn:
-                bestLn = candiadateLn
-    return bestLn
-
-def computeAverageSeperation(stateVector, lookAngle=0):
-    """
-    Return the maximum cross track separation to estimate the ambiguity.
-    
-    Parameters
-    ----------
-    stateVector : array
-        State Vector of the swarm at the time to compute the baseline for.
-        State should be (x,y,z,vx,vy,vz) stacked for each space craft. 
-        x,y,z directions defined by the LVLH coordinate system, where
-        x is radially out from the Earth to the s/c, y is along track and
-        z is the orbit angular momentum.
-    lookAngle : double (default is 0)
-        Angle between the nadir and target directions in degrees. Alternatively 
-        the angle between the -x direction and the target direction. Note that
-        the target is always in the cross track plane, or the plane normal
-        to the orbit trajectory. Assumed a positive look angle is a positive
-        rotation about the along track vector y.
-
-    Returns
-    -------
     mu : double
         Average gap between any two space craft perpendicular to the look angle
         in the cross track plane
     """
-    
-    #Pull out the positions of each space craft
+    #Pull out the positions of each space craft (TODO: Skip first for minor speed boost? Sacrifices readability and ability to change code to not have chief...)
     positions = np.zeros((int(len(stateVector)/6),3))
     for i in range(len(positions)):
         positions[i] = stateVector[i*6:i*6+3]
-    
     #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
     positions[0] = np.zeros(3)
 
+    
     #Compute the look angle unit vector
     lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
     
@@ -1058,12 +1108,39 @@ def computeAverageSeperation(stateVector, lookAngle=0):
     sortIndex = np.argsort(projectedPositions[:,0])
     sortedPositions = projectedPositions[sortIndex]
 
+
+    ##Compute the look angle unit vector (2D without any along track component. If this wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated)
+    #lookVector = np.array([-np.cos(np.radians(lookAngle)),np.sin(np.radians(lookAngle))])
+    #
+    #
+    ##Project onto the look angle and subtract this off to get component perpendicular to the look angle
+    ##Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
+    ##angle. Will then remove the along track dimension and get a 1D arrangement and sort them
+    #projectedPositions = np.zeros((int(len(stateVector)/6),2))
+    ##Only loop through deputies, as chief will be at [0,0,0] by definition
+    #for i in range(len(positions)-1):
+    #    #Remove the along track (y) component
+    #    #This is projection onto the imaging plane
+    #    #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
+    #    projectedPositions[i+1] = np.array([positions[i+1,0],positions[i+1,2]])
+    #    #Project onto look vector
+    #    projectedPositions[i+1] =  projectedPositions[i+1] - np.dot(projectedPositions[i+1],lookVector)*projectedPositions[i+1]/np.linalg.norm(projectedPositions[i+1])
+    #
+    ##Now we know they are all along a straight line, so we can sort by our x axis! (Now each s/c is in order along the baseline)
+    #sortIndex = np.argsort(projectedPositions[:,0])
+    #sortedPositions = projectedPositions[sortIndex]
+
+    #Best Baseline is now just the distance between the two end points
+    Ln = np.linalg.norm(sortedPositions[0]-sortedPositions[-1])
+    
+    
+
     #Now loop through recording seperations to take the average
     mus = np.zeros(len(sortedPositions)-1)
     for i in range(len(sortedPositions)-1):
         mus[i] = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
 
-    return np.mean(mus)
+    return (Ln,np.median(mus))
 
 def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     """
@@ -1179,76 +1256,6 @@ def animationTools(orbitState, time,azim=-100, elev=43, animate=False,frames=Non
     
     ax.plot([0],[0],[0],"ko")
     plt.show()
-
-    azim = ax.azim
-    elev = ax.elev 
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title("6 space craft formation in NISAR J2 dynamic orbit, LVLH frame")
-    ax.set_xlabel("x, radial out from Earth (km)")
-    ax.set_ylabel("y, along track (km)")
-    ax.set_zlabel("z, cross track (km)")
-
-    ax.azim = azim
-    ax.elev = elev
-
-    #Loop through each deputy
-    for i in range(int(len(orbitState[0])/6-1)):
-    
-        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
-    
-    ax.plot([0],[0],[0],"ko")
-    plt.show()
-
-
-
-    fig, ax = plt.subplots()
-
-    #Loop through each deputy
-    for i in range(int(len(orbitState[0])/6-1)):
-    
-        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+2])
-    fig.set_figwidth(4.75) 
-    fig.set_figheight(4.75) 
-    plt.axis("equal")
-    ax.set_xlabel("x, radial out from Earth (km)")
-    ax.set_ylabel("z, cross track (km)")
-    plt.savefig("2D z_x visulization.png")
-
-
-    fig, ax = plt.subplots()
-
-
-    #Loop through each deputy
-    for i in range(int(len(orbitState[0])/6-1)):
-    
-        ax.plot(orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
-    fig.set_figwidth(4.75) 
-    fig.set_figheight(4.75) 
-    plt.axis("equal")
-    ax.set_xlabel("y, along track (km)")
-    ax.set_ylabel("z, cross track (km)")
-    plt.savefig("2D z_y visulization.png")
-
-    fig, ax = plt.subplots()
-
-    #Loop through each deputy
-    for i in range(int(len(orbitState[0])/6-1)):
-    
-        ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1])
-    fig.set_figwidth(4.75) 
-    fig.set_figheight(4.75) 
-    plt.axis("equal")
-    ax.set_xlabel("x, radial out from Earth (km)")
-    ax.set_ylabel("y, along track (km)")
-
-    plt.savefig("2D y_x visulization.png")
-    plt.show()
-
-
-
-
     
     if animate or sliders:
         #Save the user selected "best" veiw for animation
