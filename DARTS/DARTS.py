@@ -112,6 +112,7 @@ def demo():
     Om = 0
     om = 0
     f = 0
+    lookAngle = -30
 
     #Best opt
     init_deputy = np.array([[-0.72093219, -1.80288973, -2.50229856],
@@ -125,10 +126,27 @@ def demo():
                             [-2.13137544,  0.64205734,  0.71428304],
                             [-3.91362602,  1.48744456,  5.54746031],
                             [ 0.90122633,  2.68818185,  5.24310615]])
-    ##Paper 4 s/c 
-    #init_deputy = np.array([[-0.7241775 , -1.78246053, -2.52490054],
-    #                        [ 0.73819004,  2.25637408, -4.81125612],
-    #                        [-2.76180931,  0.80043957,  4.70555318]])
+    #Paper 4 s/c 
+    init_deputy = np.array([[-0.66511846, -1.63709506, -2.31898666],
+                            [ 0.67798823,  2.07235941, -4.41888248],
+                            [-2.53657475,  0.73516111,  4.32179996]])
+    ## 3 s/c > 30 amb
+    #init_deputy = np.array([[ -0.72502484,  -1.79521219,   3.83351334],
+    #                 [  0.73470333,   2.25236553, -18.87508826]])
+
+    ## 6 s/c < 2 res
+    #init_deputy = np.array([[-1.77347072e+01, -6.78436815e+01, -1.19577618e+02],
+    #                        [ 1.67547158e-02,  8.24530311e+01, -6.29938465e+01],
+    #                        [-6.43144926e+01,  1.63138049e+01,  3.22364198e+01],
+    #                        [-1.60920355e+02,  7.32146364e+01,  9.44322491e+01],
+    #                        [ 5.96688708e+01,  1.54573979e+02,  2.05607950e+02]])
+    #
+    ## 3 s/c < 2 m res
+    #init_deputy =np.array([[  -50.75392341,  -125.66012232,   275.49109195],
+    #                     [   51.42955157,   157.64260323, -1321.87895236]])
+    #
+
+    print(init_deputy)
 
     num_deputy = len(init_deputy)
 
@@ -138,7 +156,7 @@ def demo():
     
 
     #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 60 seconds
-    time = np.arange(0,12*24*3600,60)
+    time = np.arange(0,1*24*3600,60)
     print("start")
     print(ys)
  
@@ -146,7 +164,7 @@ def demo():
     orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
 
     #Plot the computed dynamics (set optional parameters to configure for animation)
-    animationTools(orbitState, time)
+    animationTools(orbitState, time,lookAngle,animateFlag=False,animationName = "animationOldLookProjected3.mp4")
 
     #Create dictionary of other parameters to compute
 
@@ -160,7 +178,7 @@ def demo():
     ##3D capabilities than matplot lib. Requires vtk to be installed for visualization, and may require a downgraded
     ##version of vtk to run (9.0 instead of 8.2 caused issues, developed with vtk 8.1 and Mayavi 4.7.1
     #from mayavi import mlab
-    cost = costFunction(time,orbitState,30,visualize=True,otherData=otherData)
+    cost = costFunction(time,orbitState,lookAngle,visualize=True,otherData=otherData)
     print("Cost:")
     print(cost)
 
@@ -525,6 +543,8 @@ def exportOrbit(initDeputy,orbParams):
     output.ECI = 'J2000'
     output.epoch = [2030, 1, 1, 12, 00, 00]
 
+    #Add units!!
+
     time = output.createDimension('time', None)
     spaceCraft = output.createDimension('spaceCraft',orbParams["num_deputy"]+1)
     spatialDim = output.createDimension('spatialDim',3)
@@ -849,11 +869,11 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
 
     for i in range(len(t)):
         #Compute the baseline
-        baselines[i] = legacyDARTSfunctions.computeBaseline(stateVector[i],lookAngle)
+        #baselines[i] = legacyDARTSfunctions.computeBaseline(stateVector[i],lookAngle)
         #Compute the median spacing
-        separations[i] = legacyDARTSfunctions.computeAverageSeperation(stateVector[i],lookAngle)
+        #separations[i] = legacyDARTSfunctions.computeAverageSeperation(stateVector[i],lookAngle)
         #Compute the baseline & the median spacing
-        #(baselines[i],separations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
+        (baselines[i],separations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
 
     #Now loop through and see how often we violate our constraints:
     #   Resolution > 1
@@ -988,6 +1008,16 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     print(f"Pairwise Critical Baseline Violations (< 30 m): {numViolatePairWiseCritBase}")
     print("Percentage of orbit below Pairwise Critical Baseline")
     print(len(np.where(critBaselines >= separations)[0])/len(ambiguities))
+    print("Avg Amb")
+    print(np.mean(ambiguities))
+    print("Avg Crit Baseline")
+    print(np.mean(critBaselines))
+    print("Max Baseline")
+    print(np.max(baselines))
+    print("Avg Baseline")
+    print(np.mean(baselines))
+    print("Avg Sep")
+    print(np.mean(separations))
 
     return score
 
@@ -1027,6 +1057,8 @@ def computeR0(x,yhat,lookAngle):
     if lookAngle == 0:
         r0 = np.linalg.norm(x) - r_e
     else:
+        #Make look angle positive if it is negative (since it doesn't matter for the geometry)
+        lookAngle = np.abs(lookAngle)
 
         #Convert look angle to rads
         rlookAngle = np.radians(lookAngle)
@@ -1043,8 +1075,10 @@ def computeR0(x,yhat,lookAngle):
             #wideAng was in wrong quadrant so should have been wideAng = np.pi - wideAng
             rotationAngle = wideAng - rlookAngle
             r0 = np.sin(rotationAngle)*(r_e)/np.sin(rlookAngle)
-    
 
+        #Check if we had an invalid r0 that resulted in looking off the edge of the Earth
+        if np.isnan(r0):
+            raise Exception("Invalid look angle, line of sight does not intersect Earth")        
     return r0
 
 
@@ -1087,9 +1121,9 @@ def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
         positions[i] = stateVector[i*6:i*6+3]
     #First space craft is the chief, which has position 0,0,0 by definition (the state vector data is the orbit elements, which we don't need)
     positions[0] = np.zeros(3)
-
     
     #Compute the look angle unit vector
+
     lookVector = np.array([-np.cos(np.radians(lookAngle)),0,np.sin(np.radians(lookAngle))])
     
     #Project onto the look angle and subtract this off to get component perpendicular to the look angle
@@ -1098,16 +1132,15 @@ def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
     projectedPositions = np.zeros((int(len(stateVector)/6),2))
     #Only loop through deputies, as chief will be at [0,0,0] by definition
     for i in range(len(positions)-1):
-        positions[i+1] =  positions[i+1] - np.dot(positions[i+1],lookVector)*positions[i+1]/np.linalg.norm(positions[i+1])
+        positions[i+1] =  positions[i+1] - np.dot(positions[i+1],lookVector)*lookVector/np.linalg.norm(lookVector)
         #Remove the along track (y) component
         #This is projection onto the imaging plane
         #If the look vector wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated
-        projectedPositions[i] = np.array([positions[i,0],positions[i,2]])
+        projectedPositions[i+1] = np.array([positions[i+1,0],positions[i+1,2]])
 
     #Now we know they are all along a straight line, so we can sort by our x axis! (Now each s/c is in order along the baseline)
     sortIndex = np.argsort(projectedPositions[:,0])
     sortedPositions = projectedPositions[sortIndex]
-
 
     ##Compute the look angle unit vector (2D without any along track component. If this wasn't just a rotation of the nadir direction around the tangential veloctity, this would need to be more complicated)
     #lookVector = np.array([-np.cos(np.radians(lookAngle)),np.sin(np.radians(lookAngle))])
@@ -1202,7 +1235,7 @@ def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     
 
 
-def animationTools(orbitState, time,azim=-100, elev=43, animate=False,frames=None,animationName="animation.mp4",sliders=False):
+def animationTools(orbitState, time,lookAngle,azim=-100, elev=43, animateFlag=False,frames=None,animationName="animation.mp4",sliders=False):
     """
     Helper method to animate or provide lightweight 
     visualization of the formation dynamics. Several
@@ -1249,18 +1282,32 @@ def animationTools(orbitState, time,azim=-100, elev=43, animate=False,frames=Non
     ax.azim = azim
     ax.elev = elev
 
+
+    #Compute the look angle unit vector
+    lookVector = np.array([[0,-np.cos(np.radians(lookAngle))],[0,0],[0,np.sin(np.radians(lookAngle))]])
+    baseLine = np.array([[-np.sin(np.radians(lookAngle)),np.sin(np.radians(lookAngle))],[0,0],[-np.cos(np.radians(lookAngle)),np.cos(np.radians(lookAngle))]])
     #Loop through each deputy
     for i in range(int(len(orbitState[0])/6-1)):
     
         ax.plot(orbitState[:,6*(i+1)],orbitState[:,6*(i+1)+1],orbitState[:,6*(i+1)+2])
     
     ax.plot([0],[0],[0],"ko")
+    #Get sense of scale
+    scale = max(max(np.max(orbitState[:,6*(i+1)]),np.max(orbitState[:,6*(i+1)+2])),np.max(orbitState[:,6*(i+1)+1]))
+    ax.set_xlim(-scale, scale)
+    ax.set_ylim(-scale, scale)
+    ax.set_zlim(-scale, scale)
+    
+    ax.plot(scale*lookVector[0],scale*lookVector[1],scale*lookVector[2])
+    ax.plot(scale*baseLine[0],scale*baseLine[1],scale*baseLine[2])
     plt.show()
     
-    if animate or sliders:
+    if animateFlag or sliders:
         #Save the user selected "best" veiw for animation
-        azimuth = ax.azim
-        elevation = ax.elev
+        #azimuth = ax.azim
+        #elevation = ax.elev
+        azimuth = -90
+        elevation = 0
     
     #Show the orbit controlled by sliders (sort of works) if desired, so the user can manipulate the dynamics
     if sliders:
@@ -1302,7 +1349,7 @@ def animationTools(orbitState, time,azim=-100, elev=43, animate=False,frames=Non
         fig.show()
     
     #Animate if desired
-    if animate:
+    if animateFlag:
         #Check if user specified number of frames, or animate whole thing
         if frames is None:
             frames = len(time)
@@ -1315,16 +1362,75 @@ def animationTools(orbitState, time,azim=-100, elev=43, animate=False,frames=Non
         writer = Writer(fps=30, metadata=dict(artist='Me'), bitrate=1800)
         
         fig = plt.figure(figsize=(10,10))
+        fig.suptitle("Space craft formation in NISAR J2 dynamic orbit, LVLH frame", fontsize=14)
         ax = fig.add_subplot(111, projection='3d')
         ax.set_xlim(-1, 1)
         ax.set_ylim(-1, 1)
         ax.set_zlim(-1, 1)
         ax.azim = azimuth
         ax.elev = elevation
-        ani = animation.FuncAnimation(fig, animate, frames=frames, fargs=(orbitData,ax,"6 space craft formation in NISAR J2 dynamic orbit, LVLH frame"))
+        ani = animation.FuncAnimation(fig, animate, frames=frames, fargs=(orbitData,ax,scale,lookVector,baseLine))
         
         ani.save(animationName, writer=writer)
 
+
+def animate(i,orbitData,ax,scale,lookVector,baseLine):
+    """
+    Function that makes an animation over the course of an orbit
+
+    Parameters
+    ----------
+    i : integer
+        Minute along the orbit to animate
+    orbitData : array, shape(3,len(time),num_deputy
+        State vector of the x,y,z positions of the deputies 
+        at each time along the orbit in the LVLH frame. First
+        dimension is the x, y, or z direction, next dimension 
+        is time, third dimension is the deputy.
+    ax : matplotlib.pyplot.axis
+        The axis we are animating on
+    scale : double
+        The maximum spatial extent of the formation in any of 
+        the axis directions
+    lookVector : array, shape(3,2)
+        Set of coordinate pairs describing the look vector for plotting
+    baseline : array, shape(3,2)
+        Set of coordinate pairs describing the baseline for plotting
+    """
+    print(i)
+    ax.clear()
+    ax.set_title("Time = " + str(i) + " minutes")
+    ax.set_xlabel("x, radial out from Earth (km)")
+    ax.set_ylabel("y, along track (km)")
+    ax.set_zlabel("z, cross track (km)")
+    ax.set_xlim(-scale, scale)
+    ax.set_ylim(-scale, scale)
+    ax.set_zlim(-scale, scale)
+    data = orbitData[:,int(i):int(i+1),:] #select data range
+    for j in range(len(data[0,0,:])):
+        ax.plot(data[0,:,j],data[1,:,j],data[2,:,j],"o")
+    
+    ax.plot([0],[0],[0],"ko")
+    ax.plot(scale*lookVector[0],scale*lookVector[1],scale*lookVector[2])
+    ax.plot(scale*baseLine[0],scale*baseLine[1],scale*baseLine[2])
+
+    #Plot the projected points too
+    #Project onto the look angle and subtract this off to get component perpendicular to the look angle
+    #Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
+    #angle. Will then remove the along track dimension and get a 1D arrangement and sort them
+    #Only loop through deputies, as chief will be at [0,0,0] by definition
+    for j in range(len(data[0,0,:])):
+        point = data[:,:,j].flatten()
+        #print(point)
+        #print(np.shape(point))
+        #print(lookVector[:,1])
+        #print(np.shape(lookVector[:,1]))
+        point =  point - np.dot(point,lookVector[:,1])*lookVector[:,1]/np.linalg.norm(lookVector[:,1])
+        #Remove the along track (y) component
+        #This is projection onto the imaging plane
+        #If the look vector wasn't just a rotation of the nadir direction around the tangential velocity, this would need to be more complicated
+        projectedPoint = np.array([point[0],point[2]])
+        ax.plot([projectedPoint[0]],[0],[projectedPoint[1]],"ko")
 
 
 
