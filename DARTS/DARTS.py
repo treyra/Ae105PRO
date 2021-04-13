@@ -28,6 +28,11 @@ J2 = 0.001082627 #J2 Constant
 #TODO
 #Pass in orbit parameters (make the options all in main)
 
+#TODO
+#Consider working with radians exclusively to avoid conversion calls
+
+#TODO
+#Set animation back to being the frame the user was looking at, or improve interface
 
 def main(mode="demo"):
     """
@@ -45,52 +50,59 @@ def main(mode="demo"):
             export: Exports orbit to a netCDF4 file. (Currently
             the orbit is hardcoded)
     """
-    if mode =="demo":
-        #Demo cost computation and visualization
-        demo()
-    elif mode == "optimize":
-        #Perform optimization RUN WITHOUT DEBUGGER ATTACHED OR IT WILL CRASH
-        optimize()
-    elif mode == "Noptimize":
-        optimizeNCycles()
-    elif mode == "export":
-        #Exporting
+    
+    #Initial positions of the deputies we are considering (note the optimization methods don't take this directly)
 
-        #Deputy intial positions, LVLH, x,y,z for each deputy. 
-        bestInit = np.array([[-0.72093219, -1.80288973, -2.50229856],
+    initDeputy = np.array([[-0.72093219, -1.80288973, -2.50229856],
                               [ 0.73933178,  2.2697009 , -3.74430905],
                               [-2.76315527,  0.83237523,  0.92600999],
                               [-5.07369849,  1.92835114,  7.19183203],
                               [ 1.16836679,  3.48500959,  6.79726157]])
-        #Time we integrate each orbit over
-        time = np.arange(0,12*24*3600,1)
-         
-        # orbital parameters, wrapped in a dictionary
-        
-        orbParams = {"time":time, #time steps over which to evaluate
-                    "NoRev":173, # revolutions considered, orbit altitude, orbit 
-                    "altitude":747, #orbit altitude
-                    "ecc":0, #orbit eccentricity
-                    "inc":98.4, #orbit inclination (deg)
-                    "Om":0, #orbit right ascension of ascending node (deg)
-                    "om":0, #orbit argument of periapsis (deg)
-                    "f":0, #orbit true anomaly (deg)
-                    "num_deputy":len(bestInit), 
-                    "lookAngle":30, #(deg)
-                    "mu":mu,  #gravitational parameter of Earth
-                    "r_e":r_e,  # Earth Radius 
-                    "J2":J2} #J2 Constant of Earth
-        exportOrbit(bestInit,orbParams)
 
+     #Best opt
+    initDeputy = np.array([[-0.72093219, -1.80288973, -2.50229856],
+                              [ 0.73933178,  2.2697009 , -3.74430905],
+                              [-2.76315527,  0.83237523,  0.92600999],
+                              [-5.07369849,  1.92835114,  7.19183203],
+                              [ 1.16836679,  3.48500959,  6.79726157]])
+    #Paper 6 s/c
+    initDeputy = np.array([[-0.55609512, -1.39066919, -1.93016214],
+                            [ 0.57028775,  1.75074662, -2.88819396],
+                            [-2.13137544,  0.64205734,  0.71428304],
+                            [-3.91362602,  1.48744456,  5.54746031],
+                            [ 0.90122633,  2.68818185,  5.24310615]])
+    ##Paper 4 s/c 
+    #initDeputy = np.array([[-0.66511846, -1.63709506, -2.31898666],
+    #                        [ 0.67798823,  2.07235941, -4.41888248],
+    #                        [-2.53657475,  0.73516111,  4.32179996]])
+    ## 3 s/c > 30 amb
+    #initDeputy = np.array([[ -0.72502484,  -1.79521219,   3.83351334],
+    #                 [  0.73470333,   2.25236553, -18.87508826]])
 
+    ## 6 s/c < 2 res
+    #initDeputy = np.array([[-1.77347072e+01, -6.78436815e+01, -1.19577618e+02],
+    #                        [ 1.67547158e-02,  8.24530311e+01, -6.29938465e+01],
+    #                        [-6.43144926e+01,  1.63138049e+01,  3.22364198e+01],
+    #                        [-1.60920355e+02,  7.32146364e+01,  9.44322491e+01],
+    #                        [ 5.96688708e+01,  1.54573979e+02,  2.05607950e+02]])
+    #
+    ## 3 s/c < 2 m res
+    #initDeputy =np.array([[  -50.75392341,  -125.66012232,   275.49109195],
+    #                     [   51.42955157,   157.64260323, -1321.87895236]])
 
+    # 6 s/c < 30 m amb
 
-def demo():
-    """
-    Function that demonstrates the scoring of a
-    sample trajectory. The orbit used is based off the
-    NISAR mission
-    """
+    initDeputy = np.array([[  0.99799353,   0.98625831,   5.07809861],
+                           [  1.99741795,   1.98861309,   0.8512388 ],
+                           [  3.00338484,   3.00062243,   3.70743289],
+                           [ -1.00033033,  -0.99828911,  -2.75839849],
+                           [ -1.99658145,  -2.00513947, -13.30273226]])
+    
+    
+    #Time we integrate each orbit over
+    time = np.arange(0,12*24*3600,60)
+     
+    # orbital parameters, wrapped in a dictionary
 
     #Run on nominal NISAR mission
     #Sun Sync periodic, N = 173, D = 12 (slight errors, probably due to higher order terms than J2 or minor corrections to the publicly availible data)
@@ -98,77 +110,72 @@ def demo():
     #Swath width: 240 km
     #Lambda = 9 cm (wavelenght) 
     
-    #Assume a nominal number of 6 s/c, initialized in a line .25 km apart cross track, .05 km apart along track
-    
-    
-    # assigning parameters 
-    
-    NoRev = 173
-    # orbital parameters
+    orbParams = {"time":time, #time steps over which to evaluate
+                "NoRev":173, # revolutions considered, orbit altitude, orbit 
+                "altitude":747, #orbit altitude
+                "ecc":0, #orbit eccentricity
+                "inc":98.4, #orbit inclination (deg)
+                "Om":0, #orbit right ascension of ascending node (deg)
+                "om":0, #orbit argument of periapsis (deg)
+                "f":0, #orbit true anomaly (deg)
+                "num_deputy":len(initDeputy), 
+                "lookAngle":30, #(deg)
+                "mu":mu,  #gravitational parameter of Earth
+                "r_e":r_e,  # Earth Radius 
+                "J2":J2} #J2 Constant of Earth
 
-    altitude = 747
-    ecc = 0
-    inc = 98.4
-    Om = 0
-    om = 0
-    f = 0
-    lookAngle = -30
 
-    #Best opt
-    init_deputy = np.array([[-0.72093219, -1.80288973, -2.50229856],
-                              [ 0.73933178,  2.2697009 , -3.74430905],
-                              [-2.76315527,  0.83237523,  0.92600999],
-                              [-5.07369849,  1.92835114,  7.19183203],
-                              [ 1.16836679,  3.48500959,  6.79726157]])
-    #Paper 6 s/c
-    init_deputy = np.array([[-0.55609512, -1.39066919, -1.93016214],
-                            [ 0.57028775,  1.75074662, -2.88819396],
-                            [-2.13137544,  0.64205734,  0.71428304],
-                            [-3.91362602,  1.48744456,  5.54746031],
-                            [ 0.90122633,  2.68818185,  5.24310615]])
-    #Paper 4 s/c 
-    init_deputy = np.array([[-0.66511846, -1.63709506, -2.31898666],
-                            [ 0.67798823,  2.07235941, -4.41888248],
-                            [-2.53657475,  0.73516111,  4.32179996]])
-    ## 3 s/c > 30 amb
-    #init_deputy = np.array([[ -0.72502484,  -1.79521219,   3.83351334],
-    #                 [  0.73470333,   2.25236553, -18.87508826]])
 
-    ## 6 s/c < 2 res
-    #init_deputy = np.array([[-1.77347072e+01, -6.78436815e+01, -1.19577618e+02],
-    #                        [ 1.67547158e-02,  8.24530311e+01, -6.29938465e+01],
-    #                        [-6.43144926e+01,  1.63138049e+01,  3.22364198e+01],
-    #                        [-1.60920355e+02,  7.32146364e+01,  9.44322491e+01],
-    #                        [ 5.96688708e+01,  1.54573979e+02,  2.05607950e+02]])
+    if mode =="demo":
+        #Demo cost computation and visualization
+        #demo()
+        demo(initDeputy,orbParams)
+    elif mode == "optimize":
+        #Perform optimization RUN WITHOUT DEBUGGER ATTACHED OR IT WILL CRASH
+        optimize()
+    elif mode == "Noptimize":
+        optimizeNCycles()
+    elif mode == "export":
+        #Exporting
+        exportOrbit(initDeputy,orbParams)
+    elif mode == "fitLookAngle":
+        print(fitLookAngle(initDeputy,orbParams,searchRange=np.arange(-45,45)))
+
+
+
+
+def demo(initDeputy,orbParams,animateFlag=False,animationName = "animation.mp4"):
+    """
+    Function that demonstrates the scoring of a
+    sample trajectory. The orbit used is based off the
+    NISAR mission
+    """
+
+
+    #num_deputy = len(initDeputy)
     #
-    ## 3 s/c < 2 m res
-    #init_deputy =np.array([[  -50.75392341,  -125.66012232,   275.49109195],
-    #                     [   51.42955157,   157.64260323, -1321.87895236]])
+    ## compute initial conditions for the chief and deputy
+    #ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
+    #                                       [NoRev,altitude,ecc,inc,Om,om,f,num_deputy], initDeputy, mu,r_e,J2)
     #
+    #
+    ##We know the orbit is periodic over 12 days, so just compute over those 12 days, every 60 seconds
+    #time = np.arange(0,12*24*3600,60)
+    #print("start")
+    #print(ys)
+    #
+    ##Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
+    #orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
 
-    print(init_deputy)
-
-    num_deputy = len(init_deputy)
-
-    # compute initial conditions for the chief and deputy
-    ys = pro_lib.initial_conditions_deputy("nonlinear_correction_linearized_j2_invariant", 
-                                           [NoRev,altitude,ecc,inc,Om,om,f,num_deputy], init_deputy, mu,r_e,J2)
-    
-
-    #We know the orbit is periodic over 12 days, so just compute over those 12 days, every 60 seconds
-    time = np.arange(0,1*24*3600,60)
     print("start")
-    print(ys)
- 
-    #Integrate the relative dynamics and chief orbital elements using pro_lib's dynamics function
-    orbitState  = odeint(pro_lib.dyn_chief_deputies,ys,time,args=(mu,r_e,J2,num_deputy))
+    orbitState  = computeOrbitDynamics(initDeputy,orbParams)
 
     #Plot the computed dynamics (set optional parameters to configure for animation)
-    animationTools(orbitState, time,lookAngle,animateFlag=False,animationName = "animationOldLookProjected3.mp4")
+    animationTools(orbitState, orbParams['time'],orbParams['lookAngle'],animateFlag=animateFlag,animationName=animationName)
 
     #Create dictionary of other parameters to compute
 
-    otherData = {"maxResolution" : None, "minBaseline" : None, "minAmbiguity" : None, "maxSeparation" : None }
+    otherData = {"maxResolution" : None, "minBaseline" : None, "minAmbiguity" : None, "maxAvgSeparation" : None }
 
     #Compute orbit cost
 
@@ -178,7 +185,7 @@ def demo():
     ##3D capabilities than matplot lib. Requires vtk to be installed for visualization, and may require a downgraded
     ##version of vtk to run (9.0 instead of 8.2 caused issues, developed with vtk 8.1 and Mayavi 4.7.1
     #from mayavi import mlab
-    cost = costFunction(time,orbitState,lookAngle,visualize=True,otherData=otherData)
+    cost = costFunction(orbParams['time'],orbitState,orbParams['lookAngle'],visualize=True,otherData=otherData)
     print("Cost:")
     print(cost)
 
@@ -188,38 +195,83 @@ def demo():
     print(otherData["minBaseline"])
     print("Min Ambiguity")
     print(otherData["minAmbiguity"])
-    print("Max Separation")
-    print(otherData["maxSeparation"])
-
+    print("Max Avg Separation")
+    print(otherData["maxAvgSeparation"])
 
 
     #mlab.show()
+
+
+
+
+def fitLookAngle(initDeputy,orbParams,searchRange=np.arange(-45,45)):
+    """
+    A function to take a initial formation input and find the
+    look angle that maximizes the cost function over the course
+    of the orbit.
+
+    Parameters
+    ----------
+    initDeputy : array, shape(num_deputy,3)
+        Initial deputy positions to initialize the formation from
+    orbParams : dict
+        Dictionary of the orbital parameters used to compute
+        the orbit. Required values are:
+            time, NoRev, altitude, ecc, inc, Om, om, f, 
+            num_deputy, lookAngle, mu, r_e, J2
+
+            These are: time steps over which to evaluate, 
+            revolutions considered, orbit altitude, orbit 
+            eccentricity, orbit inclination (deg), orbit 
+            right ascension of ascending node (deg), orbit
+            argument of periapsis (deg), orbit true anomaly 
+            (deg), number of deputies, look angle (deg), 
+            earth gravitational parameter, radius of earth,
+            earth J2
+    searchRange : array
+        The look angles to consider
+    Returns
+    -------
+    bestLookAngle : double
+        The best look angle found, on a the specified search range
+    """
+    bestLookAngle = None
+    bestCost = np.inf
+    time = orbParams['time']
+    orbitState = computeOrbitDynamics(initDeputy,orbParams)
+    for lookAngle in  searchRange:
+        cost = costFunction(time,orbitState,lookAngle,visualize=False,otherData=None)
+        if cost < bestCost:
+            bestCost = cost
+            bestLookAngle = lookAngle
+    return bestLookAngle
+    
 
 def optimizeNCycles():
     """
     Function to automate running several optimize cycles
     """
     
-    bestInit = np.array([[1, 1,  1],
-                         [ 2,  2, 2],
-                         [3,  3, 3],
-                         [ -1, -1, -1],
-                         [-2, -2, -2]])
+    bestInit = np.array([[  0.99799353,   0.98625831,   5.07809861],
+                           [  1.99741795,   1.98861309,   0.8512388 ],
+                           [  3.00338484,   3.00062243,   3.70743289],
+                           [ -1.00033033,  -0.99828911,  -2.75839849],
+                           [ -1.99658145,  -2.00513947, -13.30273226]])
     
-    secondBestInit = np.array([[1, 1,  1],
-                         [ 2,  2, 2],
-                         [3,  3, 3],
-                         [ -1, -1, -1],
-                         [-2, -2, -2]])
+    secondBestInit = np.array([[  0.99910998,   0.97931851,   2.57411163],
+                         [  1.9976035 ,   1.98319484,   3.30250219],
+                         [  3.00240642,   3.00798069,   6.15732614],
+                         [ -0.99901538,  -1.01497045,  -1.12579285],
+                         [ -1.99769101,  -2.01229704, -11.04104863]])
     
-    thirdBestInit = np.array([[1, 1,  1],
-                         [ 2,  2, 2],
-                         [3,  3, 3],
-                         [ -1, -1, -1],
-                         [-2, -2, -2]])
+    thirdBestInit = np.array([[  0.99910998,   0.97931851,   2.57411163],
+                         [  1.9976035 ,   1.98319484,   3.30250219],
+                         [  3.00240642,   3.00798069,   6.15732614],
+                         [ -0.99901538,  -1.01497045,  -1.12579285],
+                         [ -1.99769101,  -2.01229704, -11.04104863]])
                                  
  
-    for i in range(10):
+    for i in range(20):
         temp = optimize(bestInit,secondBestInit,thirdBestInit,visualize=False)
         print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
         print(temp)
@@ -227,9 +279,9 @@ def optimizeNCycles():
         secondBestInit = bestInit
         bestInit = temp
     
-        print(bestInit)
-        print(secondBestInit)
-        print(thirdBestInit)
+    print(bestInit)
+    print(secondBestInit)
+    print(thirdBestInit)
 
 
 
@@ -851,18 +903,20 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
 
     #Distances to the target
     r0s = np.zeros(len(t))
+    theta_i = np.zeros(len(t))
     for i in range(len(t)):
         #translating back to state vector from the orbital elements
-        chiefState = stateVector[i,0] * np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[1,0,0])
+        chiefPosVec = stateVector[i,0] * np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[1,0,0])
         #Compute along track unit vector
         yhat = np.dot(pro_lib.rotation_matrix_lvlh_to_eci(stateVector[i,3],stateVector[i,5],stateVector[i,4]),[0,1,0])
         #Compute where we are looking
-        r0s[i] = computeR0(chiefState,yhat,lookAngle)
+        (r0s[i],theta_i[i]) = computeR0(chiefPosVec,yhat,lookAngle)
 
     
     #When over target, compute baseline, ambiguity
     baselines = np.zeros(len(t))
     separations = np.zeros(len(t))
+    maxSeparations = np.zeros(len(t))
     critBaselines = np.zeros(len(t))
 
     #Compute parameters at each step
@@ -873,12 +927,10 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         #Compute the median spacing
         #separations[i] = legacyDARTSfunctions.computeAverageSeperation(stateVector[i],lookAngle)
         #Compute the baseline & the median spacing
-        (baselines[i],separations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
+        (baselines[i],separations[i],maxSeparations[i]) = computeBaselineAndAverageSeperation(stateVector[i],lookAngle)
 
     #Now loop through and see how often we violate our constraints:
-    #   Resolution > 1
-    #   ambiguity < 30
-    #
+    
     #First need some data
     #Resolution due to baseline:
     #delta_n = lambda * r0 / (p_delta*Baseline)
@@ -891,7 +943,6 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     #r0 = H/cos(theta), distance to target where H is the orbit altitude
     #p_delta,p_a = 2 for SAR
     #k = 1,2,3 (kth ambiguity, we'll take k = 1)
-    
     
     lam = .24 #Units in meters
     Bandwidth = 40 #Units in Mhz
@@ -908,9 +959,9 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     for i in range(len(t)):
         resolutions[i] = lam * r0s[i]*1000 / (2 * baselines[i]*1000) #Convert to meters
         ambiguities[i] = lam * r0s[i]*1000 / (2 * separations[i]*1000)
-        #Compute crit Baseline
-        #NOTE: LOOK ANGLE SHOULD BE THE INCIDENCE ANGLE
-        critBaselines[i] = lam * r0s[i] * np.tan(np.radians(lookAngle))/(2 * dr) #In km
+        #Compute crit Baseline (note this depends on the incidence angle at the target)
+        #Use the absolute value lookAngle to allow for negative look angles (looking the other direction)
+        critBaselines[i] = lam * r0s[i] * np.tan(np.radians(np.abs(theta_i[i])))/(2 * dr) #In km
         #Crit Baseline penalties
         critBaselinePenalty = True
         if critBaselinePenalty:
@@ -919,26 +970,19 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
                 numViolateCritBase += 1
         pairWiseCritBaselinePenalty = True
         if pairWiseCritBaselinePenalty:
-            if critBaselines[i] < separations[i]:
+            if critBaselines[i] < maxSeparations[i]:
                 score -= 50000 #Heavily penalize constraint violations
                 numViolatePairWiseCritBase += 1
 
 
-        if resolutions[i] > 1:
-            numViolateRes +=1
-            #score -= 50000 #Heavily penalize constraint violations 
+        #if resolutions[i] > 1:
+        #    numViolateRes +=1
+        #    #score -= 50000 #Heavily penalize constraint violations 
         if ambiguities[i] < 30:
             numViolateAmb +=1
             score -= 50000 #Heavily penalize constraint violations
         score += (1/resolutions[i])
-        if resolutions[i] > 200:
-            numViolateRes +=1
-            score -= 50000 #Heavily penalize constraint violations 
-        if ambiguities[i] < 500:
-            numViolateAmb +=1
-            score -= 50000 #Heavily penalize constraint violations
-        score += (1/resolutions[i]) 
-    
+
     #Compute additional data as requested to pass out (such as min resolution, max baseline, etc.)
     if otherData is not None:
         #Other data is a dictionary of desired parameters. Check what is requested and compute
@@ -951,9 +995,9 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         if "minAmbiguity" in otherData:
             #Global minimum Ambiguity (worst case)
             otherData["minAmbiguity"] = np.min(ambiguities)
-        if "maxSeparation" in otherData:
+        if "maxAvgSeparation" in otherData:
             #Global max separation (worst case)
-            otherData["maxSeparation"] = np.max(separations)
+            otherData["maxAvgSeparation"] = np.max(separations)
             
     #Plot resolution and ambiguity and crit baseline over orbit
     if visualizeTrajectory:
@@ -962,9 +1006,11 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         plt.title("Resolution over the orbit")
         plt.xlabel("Time (min)")
         plt.ylabel("Resolution (m)")
+        plt.plot(2*np.ones(len(resolutions)))
         plt.figure()
         plt.plot(ambiguities)
         plt.title("Nearest ambiguity over the orbit")
+        plt.plot(30*np.ones(len(ambiguities)))
         plt.xlabel("Time (min)")
         plt.ylabel("Nearest Ambiguity (m)")
         
@@ -977,7 +1023,7 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
         plt.legend(("Formation Baseline","Critical Baseline"))
         
         plt.figure()
-        plt.plot(separations)
+        plt.plot(maxSeparations)
         plt.plot(critBaselines)
         plt.title("Critical Baseline vs. Pairwise Baseline")
         plt.xlabel("Time (min)")
@@ -1018,10 +1064,14 @@ def computeScienceMerit(t,stateVector,lookAngle=0,visualizeTrajectory=False,othe
     print(np.mean(baselines))
     print("Avg Sep")
     print(np.mean(separations))
+    print("Max sep")
+    print(np.max(maxSeparations))
+    print("Avg max sep")
+    print(np.mean(maxSeparations))
 
     return score
 
-
+#TO DO: Check if wideAngle is ever NOT in the wrong quadrant (ie, does the if check ever fail?) If so minor speed up to remove it.
 def computeR0(x,yhat,lookAngle):
     """
     Return distance to the look target given the position vector 
@@ -1041,17 +1091,18 @@ def computeR0(x,yhat,lookAngle):
 
     Returns
     -------
-    groundTrack : array, shape (len(r), 2)
-        The latitude and longitude of the look trajectory along the 
-        Earth's surface in degrees
     r0 : double
         The distance in km from the space craft to the target position
         on the surface of the Earth.
+    theta_i : double T
+        The incidence angle in degrees
     """
 
 
     #Compute the radial and unit vector
     rhat = x/np.linalg.norm(x) #Also xhat, as this is the x direction in LVLH
+
+    theta_i = 90
 
     #Check if lookAngle != 0
     if lookAngle == 0:
@@ -1065,6 +1116,11 @@ def computeR0(x,yhat,lookAngle):
 
         #Compute the angle we need to rotate rhat by to get look target using law of sines
         #(we know the look angle and its opposite side (radius of the Earth)
+        #WideAng is the obtuse angle in the triangle formed by the vector from the center of Earth
+        #to the s/c (x), r0, and the vector from the center of the Earth to the look target
+        #The angle between x and the vector from the center of the Earth to the look target is rotationAngle
+        #If we have rotationAngle, we then get r0 directly from the law of sines. 
+        #We also check if r0 > x, as then we have a quadrant ambiguity error (the wide angle was not obtuse)
         wideAng = np.arcsin(np.linalg.norm(x)* np.sin(np.abs(rlookAngle))/(r_e))
         rotationAngle =  np.pi - (wideAng + rlookAngle)
         #Compute r0, distance from chief to the target, also using the law of sines
@@ -1075,11 +1131,15 @@ def computeR0(x,yhat,lookAngle):
             #wideAng was in wrong quadrant so should have been wideAng = np.pi - wideAng
             rotationAngle = wideAng - rlookAngle
             r0 = np.sin(rotationAngle)*(r_e)/np.sin(rlookAngle)
+            theta_i = np.degrees(wideAng)
+        else: 
+            theta_i = np.degrees(wideAng)-90
 
         #Check if we had an invalid r0 that resulted in looking off the edge of the Earth
         if np.isnan(r0):
             raise Exception("Invalid look angle, line of sight does not intersect Earth")        
-    return r0
+       
+    return (r0,theta_i)
 
 
 
@@ -1173,7 +1233,7 @@ def computeBaselineAndAverageSeperation(stateVector, lookAngle=0):
     for i in range(len(sortedPositions)-1):
         mus[i] = np.linalg.norm(sortedPositions[i+1]-sortedPositions[i])
 
-    return (Ln,np.median(mus))
+    return (Ln,np.mean(mus),np.max(mus))
 
 def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     """
@@ -1214,21 +1274,21 @@ def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     k_J2 = (3/2)*orbParams["J2"]*orbParams["mu"]*(orbParams["r_e"]**2)
 
     # Orbital Elements
-    a = orbitParams["r_e"] + orbitParams["altitude"]           # semimajor axis [km] (Assumed circular orbit)
-    inc = orbitParams["inc"]*np.pi/180             # inclination [rad]
+    a = orbParams["r_e"] + orbParams["altitude"]           # semimajor axis [km] (Assumed circular orbit)
+    inc = orbParams["inc"]*np.pi/180             # inclination [rad]
 
 
     # Xu Wang Parameters
-    h = np.sqrt(a*(1 - orbitParams["ecc"]**2)*orbitParams["mu"])           # angular momentum [km**2/s]
+    h = np.sqrt(a*(1 - orbParams["ecc"]**2)*orbParams["mu"])           # angular momentum [km**2/s]
 
 
     # effective period of the orbit
-    a_bar = a*(1 + 3*orbitParams["J2"]*orbitParams["r_e"]**2*(1-orbitParams["ecc"]**2)**0.5/(4*h**4/orbitParams["mu"]**2)*(3*np.cos(inc)**2 - 1))**(-2/3)  
-    period = 2*np.pi/np.sqrt(orbitParams["mu"])*a_bar**(3/2)  
+    a_bar = a*(1 + 3*orbParams["J2"]*orbParams["r_e"]**2*(1-orbParams["ecc"]**2)**0.5/(4*h**4/orbParams["mu"]**2)*(3*np.cos(inc)**2 - 1))**(-2/3)  
+    period = 2*np.pi/np.sqrt(orbParams["mu"])*a_bar**(3/2)  
  
 
     # simulation time
-    time = np.linspace(0,orbitParams["NoRev"]*period,int(period/(timeStepsPerOrbit)))  
+    time = np.linspace(0,orbParams["NoRev"]*period,int(period/(timeStepsPerOrbit)))  
     
     return time               # time vector with units of orbits instead of seconds
 
