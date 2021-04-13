@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d1f95e88-747b-4754-9e91-d5cd82223865</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>DARTS.py</StartupFile>
+    <StartupFile>OrbitInterpolation\OrbitInterpolationTools\InterpolationValidation.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -26,7 +26,25 @@
     <Compile Include="legacyDARTSfunctions.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OrbitInterpolation\OrbitInterpolationTools\InterpolationValidation.py" />
+    <Compile Include="OrbitInterpolation\OrbitInterpolationTools\OrbitGeneration.py" />
+    <Compile Include="OrbitInterpolation\OrbitInterpolationTools\OrbitInterpolation.py" />
+    <Compile Include="OrbitInterpolation\OrbitInterpolationTools\SplineOrbitInterpolation.py" />
+    <Compile Include="OrbitInterpolation\OrbitInterpolationTools\SplineValidation.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OrbitInterpolation\OrbitInterpolationTools\__init__.py" />
+    <Compile Include="OrbitInterpolation\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="orbitHelperFunctions.py" />
+    <Compile Include="__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="OrbitInterpolation\" />
+    <Folder Include="OrbitInterpolation\OrbitInterpolationTools\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
