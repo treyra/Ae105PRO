@@ -262,10 +262,8 @@ def animationTools(orbitState, time,azim=-100, elev=43, animateFlag=False,frames
     
     if animateFlag or sliders:
         #Save the user selected "best" veiw for animation
-        #azimuth = ax.azim
-        #elevation = ax.elev
-        azimuth = -90
-        elevation = 0
+        azimuth = ax.azim
+        elevation = ax.elev
     
     #Show the orbit controlled by sliders (sort of works) if desired, so the user can manipulate the dynamics
     if sliders:
