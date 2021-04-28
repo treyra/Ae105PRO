@@ -60,7 +60,6 @@ def main():
                 "om":0, #orbit argument of periapsis (deg)
                 "f":0, #orbit true anomaly (deg)
                 "num_deputy":len(initDeputy), 
-                "lookAngle":30, #(deg)
                 "mu":mu,  #gravitational parameter of Earth
                 "r_e":r_e,  # Earth Radius 
                 "J2":J2} #J2 Constant of Earth
@@ -84,7 +83,7 @@ def demo(initDeputy,orbParams,animateFlag=False,animationName = "animation.mp4")
     orbitState  = computeOrbitDynamics(initDeputy,orbParams)
 
     #Plot the computed dynamics (set optional parameters to configure for animation)
-    animationTools(orbitState, orbParams['time'],orbParams['lookAngle'],animateFlag=animateFlag,animationName=animationName)
+    animationTools(orbitState, orbParams['time'],animateFlag=animateFlag,animationName=animationName)
 
 
 def computeOrbitDynamics(state,orbParams):
@@ -101,14 +100,14 @@ def computeOrbitDynamics(state,orbParams):
         Dictionary of the orbital parameters used to compute
         the orbit. Required values are:
             time, NoRev, altitude, ecc, inc, Om, om, f, 
-            num_deputy, lookAngle, mu, r_e, J2
+            num_deputy, mu, r_e, J2
 
             These are: time steps over which to evaluate, 
             revolutions considered, orbit altitude, orbit 
             eccentricity, orbit inclination (deg), orbit 
             right ascension of ascending node (deg), orbit
             argument of periapsis (deg), orbit true anomaly 
-            (deg), number of deputies, look angle (deg), 
+            (deg), number of deputies, 
             earth gravitational parameter, radius of earth,
             earth J2
 
@@ -150,12 +149,12 @@ def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
         Dictionary of the orbital parameters used to compute
         the orbit. Required values are:
             NoRev, altitude, ecc, inc,
-            num_deputy, lookAngle, mu, r_e, J2
+            num_deputy, mu, r_e, J2
 
             These are: 
             revolutions considered, orbit altitude, orbit 
             eccentricity, orbit inclination (deg),
-            number of deputies, look angle (deg), 
+            number of deputies, 
             earth gravitational parameter, radius of earth,
             earth J2
     timeStepsPerOrbit : int
@@ -199,7 +198,7 @@ def orbitPeriodComputation(orbParams,timeStepsPerOrbit):
     
 
 
-def animationTools(orbitState, time,lookAngle,azim=-100, elev=43, animateFlag=False,frames=None,animationName="animation.mp4",sliders=False):
+def animationTools(orbitState, time,azim=-100, elev=43, animateFlag=False,frames=None,animationName="animation.mp4",sliders=False):
     """
     Helper method to animate or provide lightweight 
     visualization of the formation dynamics. Several
@@ -247,9 +246,6 @@ def animationTools(orbitState, time,lookAngle,azim=-100, elev=43, animateFlag=Fa
     ax.elev = elev
 
 
-    #Compute the look angle unit vector
-    lookVector = np.array([[0,-np.cos(np.radians(lookAngle))],[0,0],[0,np.sin(np.radians(lookAngle))]])
-    baseLine = np.array([[-np.sin(np.radians(lookAngle)),np.sin(np.radians(lookAngle))],[0,0],[-np.cos(np.radians(lookAngle)),np.cos(np.radians(lookAngle))]])
     #Loop through each deputy
     for i in range(int(len(orbitState[0])/6-1)):
     
@@ -262,8 +258,6 @@ def animationTools(orbitState, time,lookAngle,azim=-100, elev=43, animateFlag=Fa
     ax.set_ylim(-scale, scale)
     ax.set_zlim(-scale, scale)
     
-    ax.plot(scale*lookVector[0],scale*lookVector[1],scale*lookVector[2])
-    ax.plot(scale*baseLine[0],scale*baseLine[1],scale*baseLine[2])
     plt.show()
     
     if animateFlag or sliders:
@@ -333,12 +327,12 @@ def animationTools(orbitState, time,lookAngle,azim=-100, elev=43, animateFlag=Fa
         ax.set_zlim(-1, 1)
         ax.azim = azimuth
         ax.elev = elevation
-        ani = animation.FuncAnimation(fig, animate, frames=frames, fargs=(orbitData,ax,scale,lookVector,baseLine))
+        ani = animation.FuncAnimation(fig, animate, frames=frames, fargs=(orbitData,ax,scale))
         
         ani.save(animationName, writer=writer)
 
 
-def animate(i,orbitData,ax,scale,lookVector,baseLine):
+def animate(i,orbitData,ax,scale):
     """
     Function that makes an animation over the course of an orbit
 
@@ -356,10 +350,6 @@ def animate(i,orbitData,ax,scale,lookVector,baseLine):
     scale : double
         The maximum spatial extent of the formation in any of 
         the axis directions
-    lookVector : array, shape(3,2)
-        Set of coordinate pairs describing the look vector for plotting
-    baseline : array, shape(3,2)
-        Set of coordinate pairs describing the baseline for plotting
     """
     print(i)
     ax.clear()
@@ -375,26 +365,6 @@ def animate(i,orbitData,ax,scale,lookVector,baseLine):
         ax.plot(data[0,:,j],data[1,:,j],data[2,:,j],"o")
     
     ax.plot([0],[0],[0],"ko")
-    ax.plot(scale*lookVector[0],scale*lookVector[1],scale*lookVector[2])
-    ax.plot(scale*baseLine[0],scale*baseLine[1],scale*baseLine[2])
-
-    #Plot the projected points too
-    #Project onto the look angle and subtract this off to get component perpendicular to the look angle
-    #Want coordinates in the plane centered at the origin of the LVLH system, perpendicular to the look
-    #angle. Will then remove the along track dimension and get a 1D arrangement and sort them
-    #Only loop through deputies, as chief will be at [0,0,0] by definition
-    for j in range(len(data[0,0,:])):
-        point = data[:,:,j].flatten()
-        #print(point)
-        #print(np.shape(point))
-        #print(lookVector[:,1])
-        #print(np.shape(lookVector[:,1]))
-        point =  point - np.dot(point,lookVector[:,1])*lookVector[:,1]/np.linalg.norm(lookVector[:,1])
-        #Remove the along track (y) component
-        #This is projection onto the imaging plane
-        #If the look vector wasn't just a rotation of the nadir direction around the tangential velocity, this would need to be more complicated
-        projectedPoint = np.array([point[0],point[2]])
-        ax.plot([projectedPoint[0]],[0],[projectedPoint[1]],"ko")
 
 
 
