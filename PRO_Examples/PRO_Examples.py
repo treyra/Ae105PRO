@@ -24,6 +24,7 @@ def main():
     """
     
     #Example initial positions of the deputies around the chief 
+    #In LVLH coordinate frame, x,y,z, in km
 
     #
     ## 3 s/c example
@@ -31,7 +32,7 @@ def main():
     #          [ -1.70607441,  -0.89786518,  -4.52224124],
     #          [  1.45510593, -20.8936754 ,   4.25425026]])
 
-    # 6 s/c example
+    # 6 s/c example (note the chief is always at 0,0,0)
 
     initDeputy = np.array([[  0.52460662,   4.4225015 ,   6.95510887],
                            [ -7.39308199, -35.4905448 ,  -4.810119  ],
@@ -116,6 +117,13 @@ def computeOrbitDynamics(state,orbParams):
     orbitState : array shape(len(time),6*(num_deputy+1))
         State vector of the orbit at each time specified.
         First 6 states are the chief orbital parameters.
+                                            #Notation in Morgan et. all
+        ys[0] = r       #Semi major axis    r0
+        ys[1] = v_x     #Radial Velocity    vx0 
+        ys[2] = h       #Angular momentum   h0 
+        ys[3] = Omega   #RA of Ascending N. Omega0                    
+        ys[4] = inc     #Inclination        inc0            
+        ys[5] = theta   #True Anomaly       theta0      
         Each subsequent 6 states are a deputy's relative
         state in LVLH as (x,y,z,vx,vy,vz)
     """
